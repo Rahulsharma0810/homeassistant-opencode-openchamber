@@ -6,7 +6,7 @@ This is the **beta channel** for the OpenCode add-on. It contains experimental f
 
 ## Current Beta Changes
 
-- **ESPHome connectivity fix**: MCP tools and hab CLI now route through the Supervisor ingress proxy, fixing the HTTP 403/connection-refused errors when communicating with the ESPHome dashboard from within the addon.
+- **Beta baseline reset**: `1.9.0b0` is based on the current stable OpenCode add-on release and does not include beta-only feature changes yet.
 
 ## Reporting Issues
 

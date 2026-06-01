@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.9.0b0
+
+- Reset the beta channel baseline to the current stable OpenCode add-on release.
+- No beta-only feature changes are included in this baseline release.
+
 ## 1.7.3b0
 
 - **Fix: screenshot_url no longer always times out** — `waitUntil: "networkidle0"` was used for page navigation, which waits for zero active network connections. The HA frontend keeps a persistent WebSocket open (`/api/websocket`) for the lifetime of the page, so this condition was never satisfied and every screenshot timed out after 30 seconds. Changed to `waitUntil: "load"`, which fires once the page and its subresources are fetched and ignores ongoing connections. Dynamic content rendering is already handled by the existing `wait_seconds` delay. Fixes [#19](https://github.com/magnusoverli/opencode/issues/19)

@@ -1,7 +1,7 @@
 ---
 name: "OpenCode Beta"
 description: "Beta channel for OpenCode - AI coding agent for Home Assistant. May contain experimental features."
-version: "1.7.3b1"
+version: "1.9.0b0"
 slug: "ha_opencode_beta"
 image: "ghcr.io/magnusoverli/ha_opencode_beta/{arch}"
 url: "https://github.com/magnusoverli/opencode"
@@ -89,7 +89,7 @@ schema:
   access_token: str?
 
   # Zigbee2MQTT (optional)
-  z2m_url: url?
+  z2m_url: str?
   z2m_mqtt_topic: str?
 
   # Environment variables
