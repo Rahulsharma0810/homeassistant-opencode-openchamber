@@ -13,6 +13,7 @@ OpenCode is an AI-powered coding agent that helps you edit and manage your Home 
 - **Visual Verification**: Screenshot tool for verifying dashboard changes with AI vision
 - **LSP Integration**: Intelligent YAML editing with entity autocomplete, hover info, and diagnostics
 - **Serial Device Access**: Optionally map selected host serial devices into the add-on for USB flashing and adapter inspection workflows
+- **Optional LAN Server Mode**: Attach from another computer on your local network using the OpenCode CLI
 
 ## Configuration
 
@@ -25,6 +26,7 @@ Configure the app from the **Configuration** tab in the app page.
 | **Enable MCP Home Assistant Integration** | `true` | Enable the Model Context Protocol (MCP) server for deep Home Assistant integration. Includes 34 tools, 13 resources, 6 guided prompts, and an intelligence layer for anomaly detection, config validation, and automation suggestions. |
 | **Enable LSP Home Assistant Integration** | `true` | Enable the Language Server Protocol (LSP) server for intelligent YAML editing. Provides entity/service autocomplete, hover documentation, diagnostics for unknown entities, and go-to-definition for !include tags. |
 | **Screenshot Tool** | `false` | Enable visual verification of dashboards and UI pages. Uses headless Chromium to capture screenshots that vision-capable AI models can analyze. Requires a Long-Lived Access Token. See [Visual Verification](#visual-verification-screenshots). |
+| **Enable OpenCode LAN Server** | `false` | Start an OpenCode server on internal port `4096` so clients on your local network can attach with the OpenCode CLI. Also requires mapping `4096/tcp` in the add-on Network settings. See [LAN Server Mode](#lan-server-mode). |
 ### Terminal Appearance
 
 | Option | Default | Description |
@@ -70,6 +72,32 @@ Serial access is disabled by default. To enable it, add one or more host serial 
 OpenCode and terminal commands can then use paths such as `/dev/ttyUSB0`, `/dev/ttyACM0`, or stable `/dev/serial/by-id/...` paths when they are provided by the host. The selected paths are also exported as `OPENCODE_SERIAL_DEVICES` using `:` as the separator.
 
 The Supervisor `uart` and `udev` manifest flags remain disabled by default. They are static add-on manifest permissions rather than regular user options, so they cannot be toggled from the add-on Configuration tab.
+
+### LAN Server Mode
+
+LAN server mode lets you attach to the Home Assistant-hosted OpenCode session from a terminal outside the Home Assistant UI.
+
+To enable LAN access:
+
+1. In the add-on **Configuration** tab, set **Enable OpenCode LAN Server** to `true`.
+2. In the add-on **Network** settings, map `4096/tcp` to the host port you want to use.
+3. Save and restart the add-on.
+
+On the secondary computer, use `opencode attach` with your Home Assistant host IP and configured port:
+
+```bash
+opencode attach http://<home-assistant-ip>:<mapped-host-port>
+```
+
+Example, if you mapped `4096/tcp` to host port `4096`:
+
+```bash
+opencode attach http://192.168.1.50:4096
+```
+
+The add-on log shows the current Home Assistant port mapping when the server starts, for example `Home Assistant port mapping: 4096/tcp -> 3443`. If OpenCode also prints `opencode server listening on http://0.0.0.0:4096`, that is the internal container listener, not the URL to use from another computer. Use your Home Assistant host and the mapped host port instead.
+
+Security warning: enabling this service and mapping the port exposes an OpenCode server on your LAN. Only use this on trusted networks, restrict access with your network/firewall controls, and never expose the port to the internet or untrusted networks.
 
 ### Theme Previews
 

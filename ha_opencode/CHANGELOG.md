@@ -1,6 +1,11 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## 2.0.0
+
+- **Optional LAN server mode** — added an opt-in setting that starts an OpenCode server on fixed internal port `4096`, with Home Assistant Network settings controlling any host port mapping. This allows remote clients to connect with `opencode attach` when the port is explicitly mapped. Thanks to [@benwestrate](https://github.com/benwestrate) for contributing this feature.
+- **Masked access token field** — the Home Assistant access token option now uses a password-style configuration field in the add-on UI.
+
 ## 1.9.1
 
 - **Opt-in serial device access** — added a `serial_devices` option that lets users map selected host UART/serial devices into the add-on for USB flashing and adapter inspection workflows. Supervisor `uart` and `udev` manifest flags remain disabled by default because they are static permissions, not runtime user options.
