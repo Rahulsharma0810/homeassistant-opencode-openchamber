@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **Lower MCP server memory** — `puppeteer-core` is now loaded on first screenshot use instead of at startup, saving ~28 MB of resident memory per MCP server process when the screenshot tool is unused (the default).
+
 ## 2.0.3b5
 
 - **Native ARM64 builds** — the aarch64 image now builds on GitHub's native `ubuntu-24.04-arm` runners instead of QEMU emulation, cutting ARM build times from ~20 minutes to roughly amd64 speed. The QEMU setup step is removed from the build workflows.

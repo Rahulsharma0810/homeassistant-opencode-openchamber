@@ -76,7 +76,6 @@ import { detectAnomaly, searchEntities, generateSuggestions, generateStateSummar
 import { validateYamlStructure, resolveConfigPath } from "./lib/validation.js";
 import { extractContentFromHtml, extractConfigurationSection, extractYamlExamples } from "./lib/html-parser.js";
 import { createTextContent, createImageContent, createResourceLink } from "./lib/helpers.js";
-import puppeteer from "puppeteer-core";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -372,6 +371,17 @@ let sharedBrowser = null;
 let browserIdleTimer = null;
 const BROWSER_IDLE_MS = 120000;
 
+// puppeteer-core's module tree costs tens of MB of RSS; screenshots are
+// disabled by default, so load it only when the tool is actually used
+let puppeteerModule = null;
+
+async function getPuppeteer() {
+  if (!puppeteerModule) {
+    puppeteerModule = (await import("puppeteer-core")).default;
+  }
+  return puppeteerModule;
+}
+
 async function getSharedBrowser() {
   if (browserIdleTimer) {
     clearTimeout(browserIdleTimer);
@@ -380,6 +390,7 @@ async function getSharedBrowser() {
   if (sharedBrowser?.connected) {
     return sharedBrowser;
   }
+  const puppeteer = await getPuppeteer();
   sharedBrowser = await puppeteer.launch({
     executablePath: CHROMIUM_PATH,
     headless: "new",
