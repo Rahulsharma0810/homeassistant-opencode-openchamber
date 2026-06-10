@@ -106,9 +106,15 @@ bashio::log.info "Starting ttyd on port 8099 (Home Assistant ingress)..."
 # otherwise create a new one".
 # ==============================================================================
 
+# -I serves the custom index page built in the Dockerfile, which adds
+# clipboard support (OSC 52 from OpenCode/tmux → browser clipboard, Ctrl+V
+# paste). macOptionClickForcesSelection lets macOS users select text with
+# Option+drag while OpenCode has mouse reporting enabled (the Shift+drag
+# override is Windows/Linux-only in xterm.js).
 exec ttyd \
     -W \
     -p 8099 \
+    -I /opt/ttyd/index.html \
     -t fontSize="${FONT_SIZE}" \
     -t fontWeight=normal \
     -t fontWeightBold=bold \
@@ -118,6 +124,7 @@ exec ttyd \
     -t cursorStyle="${CURSOR_STYLE}" \
     -t drawBoldTextInBrightColors=true \
     -t minimumContrastRatio=4.5 \
+    -t macOptionClickForcesSelection=true \
     -t scrollback=10000 \
     -t "theme=${THEME_JSON}" \
     tmux new-session -A -s opencode /usr/local/bin/opencode-session.sh

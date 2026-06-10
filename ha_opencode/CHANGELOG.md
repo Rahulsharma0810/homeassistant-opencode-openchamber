@@ -13,6 +13,11 @@ All notable changes to this project will be documented in this file.
 
 ## 1.9.0
 
+- Fix clipboard copy in the web terminal: text copied inside OpenCode now reaches the browser clipboard. OpenCode emits OSC 52 clipboard escape sequences that were silently dropped twice — tmux discards passthrough sequences by default, and ttyd 1.7.7 has no OSC 52 handler. The add-on now ships a tmux config (`allow-passthrough on`, `set-clipboard on`) and serves a custom ttyd index page that forwards OSC 52 writes to the browser clipboard.
+- On plain HTTP connections — where browsers forbid silent clipboard writes — copying inside OpenCode now shows a one-click "📋 Copy to clipboard" toast instead of failing silently.
+- Fix paste with plain `Ctrl+V` in the web terminal (previously only `Ctrl+Shift+V`, `Shift+Insert`, and right-click paste worked).
+- Fix text selection on macOS while OpenCode is running: `Option+drag` now forces a browser-side selection (`macOptionClickForcesSelection`); on Windows/Linux `Shift+drag` already worked.
+- Document copy/paste behavior in DOCS.md and the terminal welcome banner.
 - Reduce memory and disk pressure by disabling OpenCode snapshots by default and ignoring noisy Home Assistant internal paths in OpenCode's file watcher.
 - Improve Zigbee2MQTT URL configuration by documenting the required `http://` or `https://` scheme and automatically treating host/IP-only `z2m_url` values as `http://`.
 - Add Home Assistant add-on development folder access by mounting `/addons` and `/addon_configs`, with an opt-in guidance setting and security warnings.

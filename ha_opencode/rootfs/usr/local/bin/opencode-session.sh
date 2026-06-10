@@ -108,6 +108,7 @@ if [ "${ADDON_ACCESS_ENABLED}" = "true" ]; then
 fi
 echo -e "${GRAY}First time? Use ${NC}${GREEN}/connect${NC} ${GRAY}inside OpenCode to add your AI provider${NC}"
 echo -e "${GRAY}Customize AI behavior by editing ${NC}${GREEN}AGENTS.md${NC} ${GRAY}in your config folder${NC}"
+echo -e "${GRAY}Copy: select text (auto-copies) · Paste: ${NC}${GREEN}Ctrl+V${NC}${GRAY} or right-click${NC}"
 echo ""
 
 # Launch OpenCode

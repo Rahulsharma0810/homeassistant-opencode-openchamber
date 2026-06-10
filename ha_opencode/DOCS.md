@@ -194,6 +194,25 @@ Review my configuration.yaml for any issues
 Add a template sensor for my energy usage
 ```
 
+## Copy and Paste
+
+The web terminal supports the system clipboard in both directions:
+
+**Copying out of the terminal**
+
+- **Inside OpenCode**: select text with the mouse (or use OpenCode's copy keybinds) — the selection is sent to your clipboard automatically.
+- **In the shell**: click and drag to select — the text is copied the moment you release (a ✂ icon flashes to confirm).
+- **While a full-screen app captures the mouse** (OpenCode, `htop`, etc.) you can always force a browser-side selection with **Shift+drag** (Windows/Linux) or **Option+drag** (macOS).
+
+> **Note:** Browsers only allow silent clipboard writes on secure (HTTPS) connections. If you access Home Assistant over plain HTTP (e.g. `http://homeassistant.local:8123`), copying inside OpenCode shows a **"📋 Copy to clipboard"** button in the corner of the terminal instead — click it once to complete the copy. Shell drag-to-copy works without the extra click either way.
+
+**Pasting into the terminal**
+
+- **Ctrl+V** (or **Cmd+V** on macOS)
+- **Right-click → Paste**, **Ctrl+Shift+V**, or **Shift+Insert** also work
+
+In the Home Assistant companion apps the embedded browser is more restricted than a regular browser; if a paste shortcut does nothing there, use the right-click/long-press paste menu.
+
 ## Helper Commands
 
 The app includes helper commands:
@@ -1071,6 +1090,13 @@ OpenCode can use significant memory on larger Home Assistant installations. This
 1. Try refreshing the page
 2. Clear your browser cache
 3. Check the app logs in the Home Assistant Supervisor
+
+### Copy/paste not working
+
+1. See the [Copy and Paste](#copy-and-paste) section for the supported shortcuts
+2. On plain HTTP connections, copying inside OpenCode requires clicking the "📋 Copy to clipboard" button that appears — browsers forbid silent clipboard writes without HTTPS
+3. To copy from full-screen apps that capture the mouse, hold **Shift** while dragging (**Option** on macOS)
+4. The companion apps' embedded browser is more restricted than a regular browser — if shortcuts fail there, open Home Assistant in a normal browser
 
 ### MCP not working
 
