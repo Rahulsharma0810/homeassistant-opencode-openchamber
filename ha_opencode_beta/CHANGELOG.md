@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 2.0.3b4
+
+- **Node 24-ready CI** — all GitHub Actions in the build and release workflows bumped to Node 24 runtimes (checkout v6, docker setup-qemu/setup-buildx/login v4, build-push v7, action-gh-release v3) ahead of GitHub's enforced runtime switch on June 16, 2026. No add-on functionality changes — the image is rebuilt from the same source as 2.0.3b3.
+
 ## 2.0.3b3
 
 Performance release — startup, MCP tool, and YAML LSP latency.
