@@ -226,6 +226,10 @@ The web terminal supports the system clipboard in both directions:
 
 In the Home Assistant companion apps the embedded browser is more restricted than a regular browser; if a paste shortcut does nothing there, use the right-click/long-press paste menu.
 
+**Touch scrolling**
+
+On phones and tablets, one-finger vertical drag gestures inside the terminal are translated to terminal scroll events so full-screen apps such as OpenCode can scroll without a separate mobile mode.
+
 ## Helper Commands
 
 The app includes helper commands:

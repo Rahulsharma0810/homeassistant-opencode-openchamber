@@ -106,9 +106,9 @@ RUN chmod +x /usr/local/bin/* \
 
 # Build the custom ttyd index page (served via -I at runtime): ttyd's page is
 # a single self-contained HTML file compiled into the binary, so dump it from
-# a briefly-running instance and inject the clipboard glue script (OSC 52 →
-# browser clipboard, Ctrl+V paste). The injector fails the build if the page
-# could not be dumped or has an unexpected layout.
+# a briefly-running instance and inject local browser-side fixes for clipboard
+# and touch scrolling. The injector fails the build if the page could not be
+# dumped or has an unexpected layout.
 RUN set -e; \
     ttyd -p 18099 -i lo bash & \
     TTYD_PID=$!; \
@@ -119,7 +119,7 @@ RUN set -e; \
     done; \
     kill "$TTYD_PID"; \
     [ "$ok" = "1" ]; \
-    python3 /opt/ttyd/inject-clipboard.py /tmp/ttyd-index.html /opt/ttyd/clipboard.js /opt/ttyd/index.html; \
+    python3 /opt/ttyd/inject-clipboard.py /tmp/ttyd-index.html /opt/ttyd/index.html /opt/ttyd/clipboard.js /opt/ttyd/touch-scroll.js; \
     rm -f /tmp/ttyd-index.html
 
 # Set working directory to HA config (mounted at runtime)

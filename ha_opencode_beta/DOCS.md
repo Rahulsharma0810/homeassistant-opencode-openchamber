@@ -11,6 +11,7 @@ This is the **beta channel** for the OpenCode add-on. It contains experimental f
 - **Optional LAN server mode**: You can now enable an OpenCode server bound to `0.0.0.0` so other computers on your local network can connect directly.
 - **PPQ private TEE models**: Opt-in encrypted proxy for PPQ private models running in remote TEEs. The proxy is internal-only and binds to `127.0.0.1` inside the add-on container.
 - **Web terminal clipboard fixes**: Copying inside OpenCode now reaches the browser clipboard, plain `Ctrl+V` paste works, and macOS users can use `Option+drag` to select text while full-screen terminal apps capture the mouse.
+- **Touch scrolling**: One-finger vertical drag gestures inside the terminal now scroll full-screen apps such as OpenCode on phones and tablets.
 - **OpenCode update policy**: The add-on can keep OpenCode updated in persistent add-on data (`latest`) or use only the image-bundled version (`bundled`).
 
 ## Add-on Folder Access

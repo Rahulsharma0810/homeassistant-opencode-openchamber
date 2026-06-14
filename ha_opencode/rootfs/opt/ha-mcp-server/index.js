@@ -4690,8 +4690,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
               maxBuffer: 2 * 1024 * 1024,
               env: {
                 ...process.env,
-                // zigporter uses HA_URL + HA_TOKEN (set in /data/.env_vars at init)
-                // Ensure they're available even if sourcing didn't propagate
+                // zigporter uses HA_URL + HA_TOKEN. HA_TOKEN is derived from
+                // the live Supervisor token and is intentionally not persisted.
                 HA_URL: process.env.HA_URL || "http://supervisor/core",
                 HA_TOKEN: process.env.HA_TOKEN || process.env.SUPERVISOR_TOKEN,
                 HA_VERIFY_SSL: "false",

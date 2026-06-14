@@ -41,6 +41,7 @@ export HOME="/data"
 export XDG_DATA_HOME="/data/.local/share"
 export XDG_CONFIG_HOME="/data/.config"
 export NPM_CONFIG_PREFIX="/data/.npm-global"
+OPENCODE_TMPDIR="/data/.cache/opencode-tmp"
 
 if [ "${OPENCODE_UPDATE_POLICY}" = "latest" ]; then
     export PATH="${NPM_CONFIG_PREFIX}/bin:/usr/local/bin:/usr/bin:/bin:${PATH}"
@@ -49,7 +50,9 @@ else
     export OPENCODE_DISABLE_AUTOUPDATE=true
 fi
 
-mkdir -p /data/.local/share/opencode /data/.config/opencode "${NPM_CONFIG_PREFIX}"
+rm -rf "${OPENCODE_TMPDIR}"
+mkdir -p /data/.local/share/opencode /data/.config/opencode "${NPM_CONFIG_PREFIX}" "${OPENCODE_TMPDIR}"
+chmod 700 "${OPENCODE_TMPDIR}"
 printf '%s\n' "${OPENCODE_UPDATE_POLICY}" > /data/.opencode_update_policy
 
 # ==============================================================================
@@ -66,7 +69,7 @@ OPTIONS_FILE="/data/options.json"
 ENV_VARS_COUNT=$(jq -r '.env_vars // [] | length' "${OPTIONS_FILE}")
 
 # Reserved names that would break the add-on if overridden
-ENV_VARS_RESERVED='"HOME","PATH","SUPERVISOR_TOKEN","XDG_DATA_HOME","XDG_CONFIG_HOME","NPM_CONFIG_PREFIX","npm_config_prefix","NODE_OPTIONS","OPENCODE_DISABLE_AUTOUPDATE","OPENCODE_UPDATE_POLICY","SHELL","USER","PWD"'
+ENV_VARS_RESERVED='"HOME","PATH","SUPERVISOR_TOKEN","HA_TOKEN","TMPDIR","XDG_DATA_HOME","XDG_CONFIG_HOME","NPM_CONFIG_PREFIX","npm_config_prefix","NODE_OPTIONS","OPENCODE_DISABLE_AUTOUPDATE","OPENCODE_UPDATE_POLICY","SHELL","USER","PWD"'
 
 if [ "${ENV_VARS_COUNT}" -gt 0 ]; then
     bashio::log.info "Processing ${ENV_VARS_COUNT} user-defined environment variable(s)..."
@@ -115,6 +118,7 @@ fi
 # Export system-managed runtime paths for all services and shell sessions.
 printf 'export NPM_CONFIG_PREFIX=%q\n' "${NPM_CONFIG_PREFIX}" >> "${ENV_VARS_FILE}"
 printf 'export OPENCODE_UPDATE_POLICY=%q\n' "${OPENCODE_UPDATE_POLICY}" >> "${ENV_VARS_FILE}"
+printf 'export TMPDIR=%q\n' "${OPENCODE_TMPDIR}" >> "${ENV_VARS_FILE}"
 if [ "${OPENCODE_UPDATE_POLICY}" = "latest" ]; then
     printf 'export PATH="%s/bin:/usr/local/bin:/usr/bin:/bin:${PATH}"\n' "${NPM_CONFIG_PREFIX}" >> "${ENV_VARS_FILE}"
 else
@@ -205,10 +209,11 @@ fi
 # zigporter needs HA_URL + HA_TOKEN to talk to Home Assistant.
 # Inside the Supervisor environment, http://supervisor/core proxies to HA Core
 # and SUPERVISOR_TOKEN is a valid Bearer token — same mechanism as hab.
+# HA_TOKEN is exported at runtime by the services that need it, not persisted
+# into /data/.env_vars.
 # ==============================================================================
 
 printf 'export HA_URL=http://supervisor/core\n' >> "${ENV_VARS_FILE}"
-printf 'export HA_TOKEN=%q\n' "${SUPERVISOR_TOKEN}" >> "${ENV_VARS_FILE}"
 printf 'export HA_VERIFY_SSL=false\n' >> "${ENV_VARS_FILE}"
 
 # Z2M configuration — auto-discover or use manual override

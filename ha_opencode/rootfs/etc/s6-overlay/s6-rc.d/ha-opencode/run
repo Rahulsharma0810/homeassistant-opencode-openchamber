@@ -19,6 +19,12 @@ if [ -f /data/.env_vars_discovered ]; then
     source /data/.env_vars_discovered
 fi
 
+# Keep the Supervisor token process-only. Tools that expect HA_TOKEN receive it
+# from the live environment instead of a persisted /data/.env_vars entry.
+if [ -n "${SUPERVISOR_TOKEN:-}" ]; then
+    export HA_TOKEN="${SUPERVISOR_TOKEN}"
+fi
+
 OPENCODE_UPDATE_POLICY=$(cat /data/.opencode_update_policy 2>/dev/null || echo "latest")
 if [ "${OPENCODE_UPDATE_POLICY}" = "latest" ]; then
     export PATH="${NPM_CONFIG_PREFIX}/bin:/usr/local/bin:/usr/bin:/bin:${PATH}"
@@ -116,10 +122,11 @@ bashio::log.info "Starting ttyd on port 8099 (Home Assistant ingress)..."
 # ==============================================================================
 
 # -I serves the custom index page built in the Dockerfile, which adds
-# clipboard support (OSC 52 from OpenCode/tmux → browser clipboard, Ctrl+V
-# paste). macOptionClickForcesSelection lets macOS users select text with
-# Option+drag while OpenCode has mouse reporting enabled (the Shift+drag
-# override is Windows/Linux-only in xterm.js).
+# clipboard support (OSC 52 from OpenCode/tmux -> browser clipboard, Ctrl+V
+# paste) and touch scrolling for mobile browsers.
+# macOptionClickForcesSelection lets macOS users select text with Option+drag
+# while OpenCode has mouse reporting enabled (the Shift+drag override is
+# Windows/Linux-only in xterm.js).
 exec ttyd \
     -W \
     -p 8099 \

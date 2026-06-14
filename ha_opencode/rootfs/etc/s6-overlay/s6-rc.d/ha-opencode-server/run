@@ -17,6 +17,12 @@ if [ -f /data/.env_vars_discovered ]; then
     source /data/.env_vars_discovered
 fi
 
+# Keep the Supervisor token process-only. Tools that expect HA_TOKEN receive it
+# from the live environment instead of a persisted /data/.env_vars entry.
+if [ -n "${SUPERVISOR_TOKEN:-}" ]; then
+    export HA_TOKEN="${SUPERVISOR_TOKEN}"
+fi
+
 OPENCODE_UPDATE_POLICY=$(cat /data/.opencode_update_policy 2>/dev/null || echo "latest")
 if [ "${OPENCODE_UPDATE_POLICY}" = "latest" ]; then
     export PATH="${NPM_CONFIG_PREFIX}/bin:/usr/local/bin:/usr/bin:/bin:${PATH}"

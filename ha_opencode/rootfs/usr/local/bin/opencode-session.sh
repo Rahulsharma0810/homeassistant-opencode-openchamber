@@ -22,12 +22,22 @@ fi
 # This is auto-injected by Home Assistant Supervisor
 if [ -z "$SUPERVISOR_TOKEN" ]; then
     echo "Warning: SUPERVISOR_TOKEN not set. MCP integration may not work."
+else
+    # zigporter uses HA_TOKEN; derive it from the live Supervisor token without
+    # persisting the token in /data/.env_vars.
+    export HA_TOKEN="${SUPERVISOR_TOKEN}"
 fi
 
 
 # Ensure directories exist
 mkdir -p "${HOME}/.local/share/opencode"
 mkdir -p "${HOME}/.config/opencode"
+
+# OpenCode/Bun may need to mmap native TUI files as executable. Use an app-owned
+# temp directory instead of relying on /tmp mount flags.
+export TMPDIR="${TMPDIR:-/data/.cache/opencode-tmp}"
+mkdir -p "${TMPDIR}"
+chmod 700 "${TMPDIR}" 2>/dev/null || true
 
 # KDE Breeze-style colors
 BLUE='\033[38;2;29;153;243m'
