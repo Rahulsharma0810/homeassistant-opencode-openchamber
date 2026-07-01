@@ -87,7 +87,8 @@ def main():
         readme_content = f.read()
         
     # Replace badges/version
-    new_badge_shield = f"[version-shield]: https://img.shields.io/badge/version-v{new_version}-blue.svg"
+    badge_version = new_version.replace("-", "--")
+    new_badge_shield = f"[version-shield]: https://img.shields.io/badge/version-v{badge_version}-blue.svg"
     readme_content = re.sub(
         r'^\[version-shield\]:\s*https://img\.shields\.io/badge/version-v[0-9.-]+-blue\.svg',
         new_badge_shield,

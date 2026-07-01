@@ -311,11 +311,11 @@ This is free and unencumbered software released into the public domain - see the
 [issues]: https://github.com/Rahulsharma0810/homeassistant-opencode-openchamber/issues
 [license]: UNLICENSE
 [github]: https://github.com/Rahulsharma0810/homeassistant-opencode-openchamber
-[repo-add]: https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2FRahulsharma0810%2Fopencode
+[repo-add]: https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2FRahulsharma0810%2Fhomeassistant-opencode-openchamber
 [repo-btn]: https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg
 
 <!-- Badges -->
-[version-shield]: https://img.shields.io/badge/version-v1.17.12-1.13.8-blue.svg
+[version-shield]: https://img.shields.io/badge/version-v1.17.12--1.13.8-blue.svg
 [project-stage-shield]: https://img.shields.io/badge/project%20stage-stable-green.svg?style=for-the-badge
 [license-shield]: https://img.shields.io/github/license/Rahulsharma0810/homeassistant-opencode-openchamber.svg?style=for-the-badge
 [maintenance-shield]: https://img.shields.io/maintenance/yes/2026.svg?style=for-the-badge
