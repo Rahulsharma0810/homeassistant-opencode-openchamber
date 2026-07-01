@@ -1,0 +1,19 @@
+#!/command/with-contenv bashio
+# ==============================================================================
+# Ingress Router - Proxies to OpenChamber or OpenCode LAN server
+# ==============================================================================
+
+set -e
+
+ENABLE_SERVER=$(bashio::config 'enable_server' 2>/dev/null || echo "false")
+OPENCHAMBER_ENABLED=$(bashio::config 'openchamber_enabled' 2>/dev/null || echo "false")
+OPENCHAMBER_PORT=$(bashio::config 'openchamber_port' 2>/dev/null || echo "3010")
+
+export ENABLE_SERVER
+export OPENCHAMBER_ENABLED
+export OPENCHAMBER_PORT
+
+bashio::log.info "Starting ingress router on port 3000..."
+bashio::log.info "enable_server=${ENABLE_SERVER} openchamber_enabled=${OPENCHAMBER_ENABLED}"
+
+exec node /opt/ingress-router/server.js

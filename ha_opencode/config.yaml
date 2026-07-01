@@ -12,11 +12,14 @@ startup: application
 init: false
 
 # Ingress configuration
-ingress: true
-ingress_port: 8099
+ingress:
+  - port: 3000
+    title: "Open Web UI"
+    icon: mdi:monitor-dashboard
+  - port: 8099
+    title: "Open OpenCode CLI"
+    icon: mdi:console
 ingress_stream: true
-panel_icon: mdi:robot
-panel_title: OpenCode
 ports:
   4096/tcp: null
   3010/tcp: null

@@ -199,7 +199,10 @@ Both OpenCode and OpenChamber are kept updated automatically:
 
 ### 1. Open the App
 
-Click on **OpenCode** in the Home Assistant sidebar to open the terminal.
+The add-on adds two buttons to the Home Assistant sidebar:
+
+- **Open Web UI** — Opens OpenChamber (rich visual workspace). If you enable **OpenCode LAN Server** in Configuration, this opens the OpenCode server interface instead.
+- **Open OpenCode CLI** — Opens the web terminal (ttyd) with the OpenCode CLI.
 
 ### 2. Configure Your AI Provider
 
