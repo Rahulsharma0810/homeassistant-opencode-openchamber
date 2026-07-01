@@ -34,17 +34,30 @@ def main():
     if old_version_match:
         old_version = old_version_match.group(1)
         if old_version == new_version:
-            print("Addon version matches latest NPM releases. No update needed for config.yaml.")
-        else:
-            config_content = re.sub(
-                r'^version:\s*"[^"]+"',
-                f'version: "{new_version}"',
-                config_content,
-                flags=re.MULTILINE
+            # NPM versions match — increment or add a build suffix for
+            # add-on packaging changes (ingress config, docs, etc.)
+            # e.g. 1.17.12-1.13.8 → 1.17.12-1.13.8.1
+            build_num = 0
+            base_version = new_version
+            build_suffix_match = re.match(
+                r'^(\d+\.\d+\.\d+-\d+\.\d+\.\d+)\.(\d+)$', old_version
             )
-            with open(config_path, "w", encoding="utf-8") as f:
-                f.write(config_content)
-            print(f"Updated config.yaml version: {old_version} -> {new_version}")
+            if build_suffix_match:
+                base_version = build_suffix_match.group(1)
+                build_num = int(build_suffix_match.group(2))
+            new_version = f"{base_version}.{build_num + 1}"
+            print(f"Build suffix increment: {old_version} -> {new_version}")
+        else:
+            print(f"Upstream version change: {old_version} -> {new_version}")
+
+        config_content = re.sub(
+            r'^version:\s*"[^"]+"',
+            f'version: "{new_version}"',
+            config_content,
+            flags=re.MULTILINE
+        )
+        with open(config_path, "w", encoding="utf-8") as f:
+            f.write(config_content)
     else:
         print("Warning: could not find version key in config.yaml")
         old_version = None
