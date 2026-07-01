@@ -33,19 +33,21 @@ def main():
     old_version_match = re.search(r'^version:\s*"([^"]+)"', config_content, re.MULTILINE)
     if old_version_match:
         old_version = old_version_match.group(1)
-        if old_version == new_version:
-            # NPM versions match — increment or add a build suffix for
-            # add-on packaging changes (ingress config, docs, etc.)
-            # e.g. 1.17.12-1.13.8 → 1.17.12-1.13.8.1
-            build_num = 0
-            base_version = new_version
-            build_suffix_match = re.match(
-                r'^(\d+\.\d+\.\d+-\d+\.\d+\.\d+)\.(\d+)$', old_version
-            )
-            if build_suffix_match:
-                base_version = build_suffix_match.group(1)
-                build_num = int(build_suffix_match.group(2))
-            new_version = f"{base_version}.{build_num + 1}"
+        # Strip any existing build suffix for comparison
+        # e.g. "1.17.12-1.13.8.1" -> ("1.17.12-1.13.8", "1")
+        build_suffix_match = re.match(
+            r'^(\d+\.\d+\.\d+-\d+\.\d+\.\d+)\.(\d+)$', old_version
+        )
+        if build_suffix_match:
+            current_base = build_suffix_match.group(1)
+            current_build = int(build_suffix_match.group(2))
+        else:
+            current_base = old_version
+            current_build = 0
+
+        if current_base == new_version:
+            # Same upstream NPM versions — increment build suffix
+            new_version = f"{new_version}.{current_build + 1}"
             print(f"Build suffix increment: {old_version} -> {new_version}")
         else:
             print(f"Upstream version change: {old_version} -> {new_version}")
