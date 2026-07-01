@@ -85,6 +85,24 @@ The add-on log shows the current Home Assistant port mapping when the server sta
 
 Security warning: enabling this service and mapping the port exposes an OpenCode server on your LAN. Only use this on trusted networks, restrict access with your network/firewall controls, and never expose the port to the internet or untrusted networks.
 
+## OpenChamber Web Interface (Beta)
+
+OpenChamber is a web interface for OpenCode. It turns the terminal-based coding assistant into a visual workspace featuring chat timelines, file diff viewers, multi-model execution, and session state sync.
+
+To enable OpenChamber:
+
+1. In the add-on **Configuration** tab, set **Enable OpenChamber Interface** to `true`.
+2. Configure **OpenChamber Port** (default `3010`) if you want to run it on a non-default port.
+3. In the add-on **Network** settings, map the configured port (e.g. `3010/tcp`) to your host.
+4. Save and restart the add-on.
+
+Open your browser and navigate to:
+```
+http://<home-assistant-ip>:<mapped-host-port>
+```
+
+Like the OpenCode LAN server, only enable and map this port on trusted local networks and never expose it directly to the internet without proper authentication/firewall controls.
+
 ## PPQ Private TEE Models (Beta)
 
 PPQ private mode routes OpenCode requests through a local encryption proxy before forwarding them to PPQ's private inference API. The proxy verifies the remote enclave, encrypts the request locally, and decrypts the response locally.

@@ -44,6 +44,7 @@ ENV NODE_ENV=production \
 # - g++/make: native fallback builds for OpenChamber dependencies on all arches
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
+        build-essential \
         ca-certificates \
         chromium \
         curl \
@@ -110,6 +111,7 @@ RUN chmod +x /usr/local/bin/* \
     && chmod +x /etc/s6-overlay/s6-rc.d/ha-opencode/run \
     && chmod +x /etc/s6-overlay/s6-rc.d/ha-openchamber/run \
     && chmod +x /etc/s6-overlay/s6-rc.d/ha-opencode-server/run \
+    && chmod +x /etc/s6-overlay/s6-rc.d/openchamber/run \
     && chmod +x /etc/s6-overlay/s6-rc.d/ppq-private-proxy/run \
     && chmod +x /etc/profile.d/hab-esphome.sh \
     && chmod +x /etc/profile.d/zigporter-z2m.sh \

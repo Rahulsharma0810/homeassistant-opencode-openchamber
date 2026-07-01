@@ -1,0 +1,39 @@
+#!/command/with-contenv bashio
+# ==============================================================================
+# OpenCode - OpenChamber Interface Service
+# ==============================================================================
+
+export HOME="/data"
+export XDG_DATA_HOME="/data/.local/share"
+export XDG_CONFIG_HOME="/data/.config"
+export NODE_OPTIONS="--max-old-space-size=512"
+
+if [ -f /data/.env_vars ]; then
+    source /data/.env_vars
+fi
+
+if [ -f /data/.env_vars_discovered ]; then
+    source /data/.env_vars_discovered
+fi
+
+OPENCHAMBER_ENABLED=$(bashio::config 'openchamber_enabled' 2>/dev/null || echo "false")
+OPENCHAMBER_PORT=$(bashio::config 'openchamber_port' 2>/dev/null || echo "3010")
+
+if ! bashio::var.true "${OPENCHAMBER_ENABLED}"; then
+    exec sleep infinity
+fi
+
+# Set OpenChamber variables
+export OPENCHAMBER_ALLOW_UNAUTHENTICATED_LAN="true"
+export OPENCHAMBER_HOST="0.0.0.0"
+
+# Auto-configure OpenCode connection info if OpenCode LAN server is enabled
+ENABLE_SERVER=$(bashio::config 'enable_server' 2>/dev/null || echo "false")
+if bashio::var.true "${ENABLE_SERVER}"; then
+    export OPENCODE_HOST="http://127.0.0.1"
+    export OPENCODE_PORT="4096"
+fi
+
+bashio::log.info "Starting OpenChamber on port ${OPENCHAMBER_PORT}..."
+cd /homeassistant
+exec openchamber serve --foreground --host 0.0.0.0 --port "${OPENCHAMBER_PORT}"

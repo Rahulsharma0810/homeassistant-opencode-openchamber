@@ -52,6 +52,14 @@ configuration:
     name: "Enable OpenCode LAN Server"
     description: "Start an OpenCode server on internal port 4096. To access it from another computer, also map 4096/tcp in the Network settings. Only use this on trusted networks and never expose it to the internet."
 
+  openchamber_enabled:
+    name: "Enable OpenChamber Interface"
+    description: "Start the OpenChamber web dashboard server on the configured port. Only use this on trusted local networks."
+
+  openchamber_port:
+    name: "OpenChamber Port"
+    description: "Configure the port that OpenChamber will listen on. Make sure to also map this port in the add-on Network settings."
+
   access_token:
     name: "Home Assistant Access Token"
     description: "A long-lived access token for direct communication with Home Assistant Core. Required for ESPHome integration and the screenshot tool. Create one in the HA UI under Profile → Long-Lived Access Tokens. Leave empty if you don't use ESPHome or screenshot tools."
