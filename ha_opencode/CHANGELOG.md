@@ -2,6 +2,16 @@
 All notable changes to this project will be documented in this file.
 
 
+## 1.17.12-1.13.9
+
+### 🧭 Navigation
+- **Open Web UI** button now opens OpenChamber (previously opened the terminal). When **Enable OpenCode LAN Server** is on, it opens the OpenCode server interface instead.
+- **Open OpenCode CLI** button added — opens the web terminal directly via a dedicated sidebar entry.
+
+### 🏗 Internal
+- New `ingress-router` service — a Node.js reverse proxy on port 3000 that routes traffic based on `enable_server` and `openchamber_enabled` options. Supports HTTP and WebSocket upgrades.
+- Multi-ingress configuration — two sidebar entries point to port 3000 (router) and port 8099 (ttyd terminal).
+
 ## 1.17.12-1.13.8
 
 ### 🤖 OpenCode (v1.17.12)
