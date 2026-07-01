@@ -4,7 +4,7 @@ description: "AI coding agent for editing Home Assistant configuration with deep
 version: "1.17.12-1.13.8"
 slug: "ha_opencode"
 image: "ghcr.io/rahulsharma0810/ha_opencode"
-url: "https://github.com/Rahulsharma0810/opencode"
+url: "https://github.com/Rahulsharma0810/homeassistant-opencode-openchamber"
 arch:
   - aarch64
   - amd64

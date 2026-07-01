@@ -1171,7 +1171,7 @@ After modifying configuration files, you may need to:
 
 - [OpenCode Documentation](https://opencode.ai/docs)
 - [OpenCode Discord](https://opencode.ai/discord)
-- [GitHub Issues](https://github.com/magnusoverli/opencode/issues)
+- [GitHub Issues](https://github.com/Rahulsharma0810/homeassistant-opencode-openchamber/issues)
 
 ## License
 

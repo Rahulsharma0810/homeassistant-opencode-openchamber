@@ -125,11 +125,11 @@ This release rebuilds the container to pick up significant upstream improvements
 
 ### ESPHome Error Handling
 
-- **Clear error when ESPHome tools are used without an access token** — previously produced a cryptic 500 error; now shows step-by-step setup instructions in the MCP tools, the `hab_run` gateway, and the shell ([#16](https://github.com/magnusoverli/opencode/issues/16))
+- **Clear error when ESPHome tools are used without an access token** — previously produced a cryptic 500 error; now shows step-by-step setup instructions in the MCP tools, the `hab_run` gateway, and the shell ([#16](https://github.com/Rahulsharma0810/homeassistant-opencode-openchamber/issues/16))
 
 ### write_config_safe: Content Protection
 
-Addresses [#14](https://github.com/magnusoverli/opencode/issues/14) — `configuration.yaml` could be overwritten when the AI wrote only a single integration without reading the existing file.
+Addresses [#14](https://github.com/Rahulsharma0810/homeassistant-opencode-openchamber/issues/14) — `configuration.yaml` could be overwritten when the AI wrote only a single integration without reading the existing file.
 
 - **Top-level key preservation** — for mapping-based YAML files (e.g. `configuration.yaml`), `write_config_safe` now blocks any write that would remove existing top-level keys
 - **Significant size reduction guard** — writes that would reduce any config file by more than 50% (by line count) are blocked
@@ -197,7 +197,7 @@ ESPHome 2026.2+ moved its dashboard to a Unix socket behind nginx with IP-based 
 
 **Rename: GitHub repository `ha_opencode` -> `opencode`**
 
-- Renamed GitHub repository from `magnusoverli/ha_opencode` to `magnusoverli/opencode`
+- Renamed GitHub repository from `magnusoverli/ha_opencode` to `Rahulsharma0810/homeassistant-opencode-openchamber`
 - All old URLs auto-redirect via GitHub — no action needed for existing users
 - Updated all repository URL references across config, docs, CI, and README
 - Reverted the directory rename from v1.5.1 — add-on directory must match slug for icon/logo discovery
