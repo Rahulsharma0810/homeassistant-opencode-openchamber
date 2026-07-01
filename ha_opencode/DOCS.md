@@ -10,6 +10,7 @@ OpenCode is an AI-powered coding agent that helps you edit and manage your Home 
 - **Ingress Support**: Access directly from the Home Assistant sidebar
 - **Provider Agnostic**: Works with Anthropic, OpenAI, Google, and 70+ other AI providers
 - **MCP Integration**: Deep Home Assistant integration with Tools, Resources, Prompts, and Intelligence
+- **Home Assistant Native LLM Readiness**: Detects HA's emerging native `llm` component and documents how OpenCode will adopt HA-native agent capabilities as they become available
 - **Visual Verification**: Screenshot tool for verifying dashboard changes with AI vision
 - **LSP Integration**: Intelligent YAML editing with entity autocomplete, hover info, and diagnostics
 - **PPQ Private TEE Models (Beta)**: Optional encrypted proxy for PPQ private models running in remote TEEs. Included in stable releases, but still considered beta.
@@ -24,7 +25,7 @@ Configure the app from the **Configuration** tab in the app page.
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| **Enable MCP Home Assistant Integration** | `true` | Enable the Model Context Protocol (MCP) server for deep Home Assistant integration. Includes 34 tools, 13 resources, 6 guided prompts, and an intelligence layer for anomaly detection, config validation, and automation suggestions. |
+| **Enable MCP Home Assistant Integration** | `true` | Enable the Model Context Protocol (MCP) server for deep Home Assistant integration. Includes 35 tools, 14 resources, 6 guided prompts, and an intelligence layer for anomaly detection, config validation, and automation suggestions. |
 | **Enable LSP Home Assistant Integration** | `true` | Enable the Language Server Protocol (LSP) server for intelligent YAML editing. Provides entity/service autocomplete, hover documentation, diagnostics for unknown entities, and go-to-definition for !include tags. |
 | **Screenshot Tool** | `false` | Enable visual verification of dashboards and UI pages. Uses headless Chromium to capture screenshots that vision-capable AI models can analyze. Requires a Long-Lived Access Token. See [Visual Verification](#visual-verification-screenshots). |
 | **Enable PPQ Private TEE Models (Beta)** | `false` | Start an internal PPQ private-mode encryption proxy and add it as an OpenCode provider. Requires **PPQ API Key**. This feature is included in stable releases, but should still be considered beta. See [PPQ Private TEE Models (Beta)](#ppq-private-tee-models-beta). |
@@ -334,12 +335,32 @@ Run `hab --help` or `hab <command> --help` for complete documentation.
 
 The app includes an enhanced MCP (Model Context Protocol) server that provides deep integration between OpenCode and Home Assistant. This is a comprehensive implementation featuring **Tools**, **Resources**, **Prompts**, and an **Intelligence Layer**.
 
+OpenCode's MCP server remains the complete working agent surface for this add-on today. Home Assistant is also developing a native `llm` integration and `<integration>/llm.py` platform so Core integrations and custom integrations can contribute curated LLM tools to Assist. OpenCode is designed to complement that work, not compete with it: as HA-native LLM capabilities become stable and accessible, this add-on will follow them closely and use them where they help users.
+
+### Home Assistant Native LLM Readiness
+
+The current Home Assistant native LLM work is primarily an internal platform for Home Assistant integrations and custom integrations. It lets integrations expose an `<integration>/llm.py` file with an `async_get_tools(hass, llm_context)` hook. At the time of this add-on release, that platform is not a public external API that an add-on container can register with directly.
+
+OpenCode supports the transition now by:
+
+- Detecting whether the running Home Assistant instance reports the native `llm` component.
+- Exposing this status through the `get_agent_capabilities` MCP tool and the `ha://agent/capabilities` resource.
+- Keeping all existing MCP, LSP, `hab`, screenshot, ESPHome, update, and Zigbee functionality active while HA's native platform matures.
+- Providing a strong environment for custom integration authors to edit and test future `<custom_component>/llm.py` providers.
+
+Long-term plan:
+
+- Use HA-native LLM tools for core Assist/entity-control capabilities when Home Assistant makes them stable and accessible.
+- Keep OpenCode MCP focused on add-on-specific and power-user workflows: safe config writing, validation, filesystem-aware edits, admin/dev tasks, screenshots, firmware/update flows, and troubleshooting.
+- Evaluate a companion custom integration or public API bridge if Home Assistant's native LLM platform remains integration-only and does not expose a direct add-on API.
+- Keep the add-on aligned with Home Assistant's architecture decisions so users who want to test agent-focused HA features have a first-class workbench and so OpenCode can become a premium consumer of HA-native LLM capabilities as they become available.
+
 ### MCP Capabilities Overview
 
 | Capability | Count | Description |
 |------------|-------|-------------|
-| **Tools** | 34 | Actions, queries, config validation, device management, screenshots, and hab CLI |
-| **Resources** | 9 + 4 templates | Browsable data exposed to the AI |
+| **Tools** | 35 | Actions, queries, config validation, HA-native LLM readiness, device management, screenshots, and hab CLI |
+| **Resources** | 10 + 4 templates | Browsable data exposed to the AI |
 | **Prompts** | 6 | Pre-built guided workflows for common tasks |
 | **Intelligence** | Built-in | Anomaly detection, suggestions, semantic search |
 
@@ -363,7 +384,7 @@ Then restart OpenCode (exit and run `opencode` again).
 
 ---
 
-## MCP Tools (33 Available)
+## MCP Tools (35 Available)
 
 ### State Management
 
@@ -393,6 +414,7 @@ Then restart OpenCode (exit and run `opencode` again).
 | Tool | Description |
 |------|-------------|
 | `get_config` | Get HA configuration (location, units, version, components) |
+| `get_agent_capabilities` | Report OpenCode MCP capabilities and whether the running HA instance exposes the native `llm` component |
 | `get_areas` | List all defined areas with IDs and names |
 | `get_devices` | List devices, optionally filtered by area |
 | `validate_config` | Validate configuration files before restarting |
@@ -480,6 +502,7 @@ Resources provide browsable context that the AI can access proactively:
 | `ha://scenes` | All defined scenes |
 | `ha://areas` | All areas with entity information |
 | `ha://config` | Home Assistant configuration details |
+| `ha://agent/capabilities` | OpenCode MCP capability catalog and Home Assistant native LLM readiness status |
 | `ha://integrations` | List of loaded integrations/components |
 | `ha://anomalies` | Currently detected anomalies and issues |
 | `ha://suggestions` | Current automation/optimization suggestions |

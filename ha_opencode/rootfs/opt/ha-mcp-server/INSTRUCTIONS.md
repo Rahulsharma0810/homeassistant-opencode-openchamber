@@ -19,6 +19,17 @@ You have access to the Home Assistant MCP server which provides deep integration
 3. **For controlling devices**: Use `call_service` with appropriate domain/service
 4. **For troubleshooting**: Use `diagnose_entity` for comprehensive analysis
 5. **For overview**: Use `get_states` with `summarize: true` for human-readable summaries
+6. **For agent capability status**: Use `get_agent_capabilities` to see this add-on's MCP surface and whether Home Assistant reports the native `llm` component
+
+## Home Assistant Native LLM Platform
+
+Home Assistant is adding a native `llm` integration and `<integration>/llm.py` platform so Core integrations and custom integrations can provide curated tools to Assist. Treat that as complementary to OpenCode MCP:
+
+- Use Home Assistant native LLM tools when the user is explicitly testing Assist/native LLM behavior.
+- Use OpenCode MCP tools for the working add-on surface: configuration editing, safe writes, validation, diagnostics, screenshots, updates, ESPHome, `hab`, and Zigbee workflows.
+- Use `get_agent_capabilities` or read `ha://agent/capabilities` before discussing native LLM support. It reports whether the running HA instance currently exposes the `llm` component.
+- If editing a custom integration's future `llm.py`, follow Home Assistant's upstream developer docs and keep changes scoped to the user's request.
+- Do not assume the add-on can register tools directly with HA's native `llm` platform. The initial HA work is an internal integration platform, not a public add-on API.
 
 ## Add-on Development Folder Access
 

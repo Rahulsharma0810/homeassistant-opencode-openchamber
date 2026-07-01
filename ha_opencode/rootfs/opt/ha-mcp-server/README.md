@@ -1,20 +1,20 @@
-# Home Assistant MCP Server (Cutting Edge Edition v2.2)
+# Home Assistant MCP Server (Agent Capability Edition v2.8)
 
-A comprehensive Model Context Protocol (MCP) server implementing the latest MCP specification (2025-06-18) for deep integration between OpenCode and Home Assistant.
+A comprehensive Model Context Protocol (MCP) server for deep integration between OpenCode and Home Assistant. It tracks current MCP server primitives and the latest published MCP specification (`2025-11-25`) while preserving compatibility with OpenCode's supported MCP client fields.
 
 ## Features Overview
 
 | Category | Count | Description |
 |----------|-------|-------------|
-| **Tools** | 22 | Actions and queries with structured output |
-| **Resources** | 9 + 4 templates | Browsable data exposed to the AI |
+| **Tools** | 35 | Actions, queries, config validation, HA-native LLM readiness, and admin workflows |
+| **Resources** | 10 + 4 templates | Browsable data exposed to the AI |
 | **Prompts** | 6 | Pre-built guided workflows |
 | **Intelligence** | Built-in | Anomaly detection, suggestions, semantic search |
 | **Documentation** | Built-in | Live docs fetching, deprecation checks, syntax validation |
 
 ## Cutting-Edge MCP Features (v2.1)
 
-This server implements the latest MCP specification features:
+This server includes MCP server features used by OpenCode:
 
 ### 1. Structured Tool Output
 All tools return both human-readable text AND structured JSON data:
@@ -108,6 +108,7 @@ All tools, resources, and prompts include a `title` field for display.
 | Tool | Title | Annotations |
 |------|-------|-------------|
 | `get_config` | Get Home Assistant Configuration | `readOnly`, `idempotent` |
+| `get_agent_capabilities` | Get Agent Capability Status | `readOnly`, `idempotent` |
 | `get_areas` | List All Areas | `readOnly`, `idempotent` |
 | `get_devices` | List Devices | `readOnly`, `idempotent` |
 | `validate_config` | Validate Configuration | `readOnly`, `idempotent` |
@@ -149,6 +150,7 @@ All tools, resources, and prompts include a `title` field for display.
 | `ha://scenes` | Scenes List | All defined scenes |
 | `ha://areas` | Areas List | All areas |
 | `ha://config` | HA Configuration | Home Assistant config |
+| `ha://agent/capabilities` | Agent Capabilities | OpenCode MCP capabilities and HA native LLM readiness |
 | `ha://integrations` | Loaded Integrations | Component list |
 | `ha://anomalies` | Detected Anomalies | Current issues |
 | `ha://suggestions` | Automation Suggestions | Recommendations |
@@ -202,6 +204,15 @@ ha-mcp enable
 
 ## Version History
 
+### v2.8.0 (Agent Capability Edition)
+- Added `get_agent_capabilities` read-only tool
+- Added `ha://agent/capabilities` resource
+- Reports OpenCode MCP capability counts and Home Assistant native `llm` component readiness
+- Documents the strategy for adopting HA-native LLM capabilities while preserving MCP workflows
+- Targets the current MCP TypeScript SDK `1.29.x` line
+- Adds server implementation description metadata
+- Uses strict empty input schemas for no-argument tools, matching current MCP guidance
+
 ### v2.2.0 (Documentation Edition)
 - Added documentation tools for keeping configurations current
 - `get_integration_docs` - Fetch live documentation from Home Assistant website
@@ -211,7 +222,7 @@ ha-mcp enable
 - LLMs now guided to check docs before writing configuration
 
 ### v2.1.0 (Cutting Edge Edition)
-- Implemented MCP spec 2025-06-18 features
+- Added MCP 2025-06-18-era server metadata features while preserving OpenCode compatibility
 - Added structured tool output with `outputSchema`
 - Added tool annotations (`destructive`, `idempotent`, etc.)
 - Added `title` fields to all tools, resources, prompts

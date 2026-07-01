@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 /**
- * Home Assistant MCP Server for OpenCode (Safe Config Edition v2.7)
+ * Home Assistant MCP Server for OpenCode (Agent Capability Edition v2.8)
  * 
  * A cutting-edge MCP server providing deep integration with Home Assistant.
- * Implements the latest MCP specification (2025-06-18) features:
+ * Tracks current MCP server primitives (latest published spec: 2025-11-25)
+ * while preserving OpenCode client compatibility:
  * 
  * - Structured tool output with outputSchema
  * - Tool annotations (destructive, idempotent, etc.)
@@ -24,7 +25,7 @@
  * - HA Alerts feed integration (global integration issue awareness)
  * - Visual verification via headless Chromium screenshots
  * 
- * TOOLS (34):
+ * TOOLS (35):
  * - Entity state management (get, search, history)
  * - Service calls with intelligent targeting
  * - Configuration validation and safe writing
@@ -36,7 +37,7 @@
  * - ESPHome device management, compile, and upload
  * - Visual verification screenshots of HA frontend pages
  * 
- * RESOURCES (9 + 4 templates):
+ * RESOURCES (10 + 4 templates):
  * - Live entity states by domain
  * - Automations, scripts, and scenes
  * - Area and device mappings
@@ -76,6 +77,7 @@ import { detectAnomaly, searchEntities, generateSuggestions, generateStateSummar
 import { validateYamlStructure, resolveConfigPath } from "./lib/validation.js";
 import { extractContentFromHtml, extractConfigurationSection, extractYamlExamples } from "./lib/html-parser.js";
 import { createTextContent, createImageContent, createResourceLink } from "./lib/helpers.js";
+import { buildAgentCapabilities } from "./lib/agent-capabilities.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -1855,10 +1857,16 @@ function setValidationMemo(key, data) {
 // MCP SERVER SETUP
 // ============================================================================
 
+const EMPTY_INPUT_SCHEMA = Object.freeze({
+  type: "object",
+  additionalProperties: false,
+});
+
 const server = new Server(
   {
     name: "home-assistant",
-    version: "2.2.0",
+    version: "2.8.0",
+    description: "OpenCode Home Assistant MCP server for configuration editing, diagnostics, admin workflows, and HA-native LLM readiness reporting.",
   },
   {
     capabilities: {
@@ -2083,7 +2091,17 @@ const TOOLS = [
     name: "get_config",
     title: "Get Home Assistant Configuration",
     description: "Get Home Assistant configuration including location, units, version, and loaded components.",
-    inputSchema: { type: "object", properties: {} },
+    inputSchema: EMPTY_INPUT_SCHEMA,
+    annotations: {
+      readOnly: true,
+      idempotent: true,
+    },
+  },
+  {
+    name: "get_agent_capabilities",
+    title: "Get Agent Capability Status",
+    description: "Summarize OpenCode's current Home Assistant agent capabilities and detect whether the running Home Assistant instance exposes the native llm component. Use this when deciding how to combine OpenCode MCP tools with Home Assistant's emerging native LLM platform.",
+    inputSchema: EMPTY_INPUT_SCHEMA,
     annotations: {
       readOnly: true,
       idempotent: true,
@@ -2093,7 +2111,7 @@ const TOOLS = [
     name: "get_areas",
     title: "List All Areas",
     description: "List all areas defined in Home Assistant with their IDs and names.",
-    inputSchema: { type: "object", properties: {} },
+    inputSchema: EMPTY_INPUT_SCHEMA,
     outputSchema: SCHEMAS.areaArray,
     annotations: {
       readOnly: true,
@@ -2119,7 +2137,7 @@ const TOOLS = [
     name: "validate_config",
     title: "Validate Configuration",
     description: "Validate Home Assistant configuration files. Run this before restarting to catch errors.",
-    inputSchema: { type: "object", properties: {} },
+    inputSchema: EMPTY_INPUT_SCHEMA,
     outputSchema: SCHEMAS.configValidation,
     annotations: {
       readOnly: true,
@@ -2182,7 +2200,7 @@ const TOOLS = [
     name: "get_calendars",
     title: "List Calendars",
     description: "List all calendar entities in Home Assistant.",
-    inputSchema: { type: "object", properties: {} },
+    inputSchema: EMPTY_INPUT_SCHEMA,
     annotations: {
       readOnly: true,
       idempotent: true,
@@ -2228,7 +2246,7 @@ const TOOLS = [
     name: "get_suggestions",
     title: "Get Automation Suggestions",
     description: "Get intelligent automation and optimization suggestions based on your current Home Assistant setup.",
-    inputSchema: { type: "object", properties: {} },
+    inputSchema: EMPTY_INPUT_SCHEMA,
     outputSchema: SCHEMAS.suggestionArray,
     annotations: {
       readOnly: true,
@@ -2454,10 +2472,7 @@ const TOOLS = [
     name: "get_running_jobs",
     title: "Get Running Jobs",
     description: "List all currently running or recently completed Supervisor jobs. Useful for monitoring ongoing operations like updates, backups, or restores.",
-    inputSchema: {
-      type: "object",
-      properties: {},
-    },
+    inputSchema: EMPTY_INPUT_SCHEMA,
     annotations: {
       readOnly: true,
       idempotent: true,
@@ -2469,10 +2484,7 @@ const TOOLS = [
     name: "esphome_list_devices",
     title: "List ESPHome Devices",
     description: "List all configured ESPHome devices with current and deployed firmware versions. Requires ESPHome add-on to be installed and running.",
-    inputSchema: {
-      type: "object",
-      properties: {},
-    },
+    inputSchema: EMPTY_INPUT_SCHEMA,
     annotations: {
       readOnly: true,
       idempotent: true,
@@ -2683,6 +2695,13 @@ const RESOURCES = [
     mimeType: "application/json",
   },
   {
+    uri: "ha://agent/capabilities",
+    name: "agent_capabilities",
+    title: "Agent Capabilities",
+    description: "OpenCode MCP capabilities and Home Assistant native LLM readiness status",
+    mimeType: "application/json",
+  },
+  {
     uri: "ha://integrations",
     name: "integrations",
     title: "Loaded Integrations",
@@ -2788,6 +2807,17 @@ const PROMPTS = [
     ],
   },
 ];
+
+async function getAgentCapabilities() {
+  const config = await callHA("/config");
+  return buildAgentCapabilities({
+    haConfig: config,
+    tools: TOOLS,
+    resources: RESOURCES,
+    resourceTemplates: RESOURCE_TEMPLATES,
+    prompts: PROMPTS,
+  });
+}
 
 // ============================================================================
 // REQUEST HANDLERS
@@ -2979,6 +3009,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const config = await callHA("/config");
         return makeCompatibleResponse({
           content: [createTextContent(JSON.stringify(config, null, 2), { audience: ["assistant"], priority: 0.6 })],
+        });
+      }
+
+      case "get_agent_capabilities": {
+        const capabilities = await getAgentCapabilities();
+        return makeCompatibleResponse({
+          content: [createTextContent(JSON.stringify(capabilities, null, 2), { audience: ["assistant"], priority: 0.8 })],
         });
       }
 
@@ -4912,6 +4949,18 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
         }],
       };
     }
+
+    if (uri === "ha://agent/capabilities") {
+      const capabilities = await getAgentCapabilities();
+      return {
+        contents: [{
+          uri,
+          mimeType: "application/json",
+          text: JSON.stringify(capabilities, null, 2),
+          annotations: { audience: ["assistant"], priority: 0.8 },
+        }],
+      };
+    }
     
     if (uri === "ha://integrations") {
       const config = await callHA("/config");
@@ -5259,13 +5308,13 @@ async function main() {
   
   sendLog("info", "mcp-server", { 
     action: "started",
-    version: "2.7.0",
+    version: "2.8.0",
     tools: TOOLS.length,
     resources: RESOURCES.length,
     prompts: PROMPTS.length,
   });
   
-  console.error("Home Assistant MCP server v2.7.0 started (Safe Config Edition)");
+  console.error("Home Assistant MCP server v2.8.0 started (Agent Capability Edition)");
   console.error(`Capabilities: Tools (${TOOLS.length}), Resources (${RESOURCES.length}), Prompts (${PROMPTS.length}), Logging`);
   console.error(`Features: Structured Output, Tool Annotations, Resource Links, Content Annotations, Live Docs, Safe Config Writing, Screenshots${SCREENSHOT_ENABLED ? " (enabled)" : " (disabled)"}`);
 }

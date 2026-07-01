@@ -66,6 +66,15 @@ Real-time interaction with the running Home Assistant instance:
 - Control devices and call services
 - Validate configurations
 - Diagnose issues and detect anomalies
+- Report OpenCode/HA agent capability status with `get_agent_capabilities`
+
+### Native Home Assistant LLM Platform
+Home Assistant is developing a native `llm` integration where Core integrations and custom integrations can expose curated Assist tools through `<integration>/llm.py`. This is complementary to OpenCode MCP, not a replacement.
+
+- Use native HA LLM behavior when the user is explicitly testing Assist or an integration's `llm.py` support.
+- Use OpenCode MCP for configuration editing, safe writes, validation, admin/dev workflows, screenshots, updates, ESPHome, `hab`, and Zigbee tasks.
+- Use `get_agent_capabilities` or `ha://agent/capabilities` to check whether the running HA instance reports the native `llm` component.
+- Do not assume this add-on can register tools directly with HA's native `llm` platform; the initial HA platform is internal to HA integrations/custom integrations.
 
 ### 3. hab CLI (Home Assistant Builder)
 A CLI tool designed for AI agents to manage Home Assistant. Run `hab` commands via the terminal:
@@ -522,6 +531,7 @@ Query and interact with the running Home Assistant instance:
 - `validate_config` - Check configuration validity
 - `get_error_log` - System errors and warnings
 - `diagnose_entity` - Comprehensive entity troubleshooting
+- `get_agent_capabilities` - OpenCode MCP capabilities and native HA `llm` readiness
 - `watch_firmware_update` - **Real-time firmware update monitoring** (ESPHome, WLED, Zigbee, etc.)
 - `get_available_updates`, `update_component` - System update management
 - `screenshot_url` - **Visual verification** of dashboards and UI pages (requires `screenshot_enabled` option)
@@ -536,6 +546,7 @@ Query and interact with the running Home Assistant instance:
 | Control devices | N/A | `call_service` | `hab action call` | N/A |
 | Add new integrations | Primary | N/A | N/A | N/A |
 | Troubleshoot issues | Review configs | `diagnose_entity`, `get_error_log` | `hab system health` | N/A |
+| Check agent/LLM readiness | N/A | `get_agent_capabilities` | N/A | N/A |
 | Find entities | Grep YAML files | `search_entities` | `hab entity list --domain` | N/A |
 | View history | N/A | `get_history` | N/A | N/A |
 | **Manage dashboards** | Edit YAML | N/A | **`hab dashboard` (primary)** | N/A |
