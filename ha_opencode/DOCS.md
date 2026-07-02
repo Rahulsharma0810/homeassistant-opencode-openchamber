@@ -155,15 +155,9 @@ Security warning: enabling this service and mapping the port exposes an OpenCode
 
 ### OpenChamber Web Interface
 
-OpenChamber is a premium, interactive web interface for the OpenCode agent. Instead of interacting with OpenCode solely through a command-line terminal, OpenChamber turns the agent session into a rich visual workspace.
+OpenChamber is a web interface for OpenCode. It turns the terminal-based coding assistant into a visual workspace featuring chat timelines, file diff viewers, multi-model execution, and session state sync.
 
-#### Key Features
-*   💬 **Rich Chat Timelines:** Follow agent activities and chat with formatting and syntax highlighting.
-*   📐 **Visual Workspace Engineering:** Inspect variables, model statuses, and execution stages.
-*   📂 **Multi-file Diff Viewer:** Preview, verify, and approve code changes line-by-line before writing to disk.
-*   🔄 **Session State Sync:** Keep multiple clients synced with the same background AI coding process.
-
-#### How to Enable OpenChamber:
+To enable OpenChamber:
 
 1. In the add-on **Configuration** tab, set **Enable OpenChamber Interface** to `true`.
 2. Configure **OpenChamber Port** (default `3010`) if you want to run it on a non-default port.
@@ -175,12 +169,7 @@ Open your browser and navigate to:
 http://<home-assistant-ip>:<mapped-host-port>
 ```
 
-#### 🔄 Automatic Updates
-Both OpenCode and OpenChamber are kept updated automatically:
-*   **OpenCode Updates:** Handled by the `latest` update policy. On addon start, it automatically downloads and updates the `opencode-ai` package to the newest version from NPM.
-*   **OpenChamber Updates:** Handled via the repository's automated daily build pipeline. Every day, the GitHub Action builds a new Docker image containing the latest `@openchamber/web` package from NPM. When a new version is built, it will appear as a standard addon update in your Home Assistant UI.
-
-> 🔒 **Security Note:** Like the OpenCode LAN server, only enable and map this port on trusted local networks and never expose it directly to the internet without proper authentication/firewall controls.
+Like the OpenCode LAN server, only enable and map this port on trusted local networks and never expose it directly to the internet without proper authentication/firewall controls.
 
 ### Theme Previews
 

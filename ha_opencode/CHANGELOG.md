@@ -1,17 +1,6 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-
-## 1.17.12-1.13.8
-
-### 🤖 OpenCode (v1.17.12)
-- Automated downstream build tracking the latest `opencode-ai` release.
-
----
-
-### 🔮 OpenChamber (v1.13.8)
-- Automated downstream build tracking the latest `@openchamber/web` release.
-
 ## Unreleased
 
 - **Terminal and runtime hardening** — `SUPERVISOR_TOKEN` is no longer persisted as `HA_TOKEN` in `/data/.env_vars`, OpenCode uses an app-managed executable temp directory for native TUI files, and the web terminal now translates one-finger touch drags into scroll events for mobile/tablet use.

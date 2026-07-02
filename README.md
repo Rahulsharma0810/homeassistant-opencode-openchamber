@@ -1,15 +1,16 @@
 <div align="center">
 
-# 🚀 OpenCode-OpenChamber
+# 🚀 OpenCode
 
-### *AI-Powered Configuration Assistant & Web Workspace for Home Assistant*
+### *AI-Powered Configuration Assistant for Home Assistant*
 
 [![Version][version-shield]][github]
 [![Project Stage][project-stage-shield]][github]
 [![License][license-shield]][license]
 [![Maintenance][maintenance-shield]][github]
 
-[![Build][stable-build-shield]][stable-build-workflow]
+[![Stable Build][stable-build-shield]][stable-build-workflow]
+[![Beta Build][beta-build-shield]][beta-build-workflow]
 
 **Transform your Home Assistant configuration with the power of AI**
 
@@ -70,18 +71,6 @@ Think of it as your personal expert developer who:
 - 🐛 Finds and fixes bugs automatically
 - 🚀 Implements new features on request
 - 💬 Explains complex configurations in plain English
-
----
-
-## 🔮 What is OpenChamber?
-
-[**OpenChamber**](https://github.com/openchamber) is a beautiful, interactive web interface for the OpenCode agent. Instead of interacting with OpenCode solely through a command-line terminal, OpenChamber turns the agent session into a rich visual workspace.
-
-### Key OpenChamber Benefits:
-- 💬 **Rich Chat Timelines:** Follow agent activities and chat with formatting and syntax highlighting.
-- 📐 **Visual Workspace Engineering:** Inspect variables, model statuses, and execution stages.
-- 📂 **Multi-file Diff Viewer:** Preview, verify, and approve code changes line-by-line before writing to disk.
-- 🔄 **Session State Sync:** Keep multiple clients synced with the same background AI coding process.
 
 ---
 
@@ -308,16 +297,18 @@ This is free and unencumbered software released into the public domain - see the
 <!-- Links -->
 [docs]: ./ha_opencode/DOCS.md
 [changelog]: ./ha_opencode/CHANGELOG.md
-[issues]: https://github.com/Rahulsharma0810/opencode/issues
+[issues]: https://github.com/magnusoverli/opencode/issues
 [license]: UNLICENSE
-[github]: https://github.com/Rahulsharma0810/opencode
-[repo-add]: https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2FRahulsharma0810%2Fopencode
+[github]: https://github.com/magnusoverli/opencode
+[repo-add]: https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2Fmagnusoverli%2Fopencode
 [repo-btn]: https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg
 
 <!-- Badges -->
-[version-shield]: https://img.shields.io/badge/version-v1.17.12-1.13.8-blue.svg
-[project-stage-shield]: https://img.shields.io/badge/project%20stage-stable-green.svg?style=for-the-badge
-[license-shield]: https://img.shields.io/github/license/Rahulsharma0810/opencode.svg?style=for-the-badge
+[version-shield]: https://img.shields.io/github/v/release/magnusoverli/opencode.svg?style=for-the-badge
+[project-stage-shield]: https://img.shields.io/badge/project%20stage-experimental-orange.svg?style=for-the-badge
+[license-shield]: https://img.shields.io/github/license/magnusoverli/opencode.svg?style=for-the-badge
 [maintenance-shield]: https://img.shields.io/maintenance/yes/2026.svg?style=for-the-badge
-[stable-build-shield]: https://img.shields.io/github/actions/workflow/status/Rahulsharma0810/opencode/build.yaml?style=for-the-badge&label=build
-[stable-build-workflow]: https://github.com/Rahulsharma0810/opencode/actions/workflows/build.yaml
+[stable-build-shield]: https://img.shields.io/github/actions/workflow/status/magnusoverli/opencode/build.yaml?style=for-the-badge&label=stable%20build
+[beta-build-shield]: https://img.shields.io/github/actions/workflow/status/magnusoverli/opencode/build-beta.yaml?style=for-the-badge&label=beta%20build
+[stable-build-workflow]: https://github.com/magnusoverli/opencode/actions/workflows/build.yaml
+[beta-build-workflow]: https://github.com/magnusoverli/opencode/actions/workflows/build-beta.yaml
