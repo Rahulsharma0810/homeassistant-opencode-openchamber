@@ -82,32 +82,22 @@ def main():
     else:
         print("Version section already exists in CHANGELOG.md")
         
-    # 3. Update badges in README.md
+    # 3. Update version badge in README.md
     with open(readme_path, "r", encoding="utf-8") as f:
         readme_content = f.read()
         
+    # Replace badges/version
     badge_version = new_version.replace("-", "--")
+    new_badge_shield = f"[version-shield]: https://img.shields.io/badge/version-v{badge_version}-blue.svg"
     readme_content = re.sub(
-        r'^\[version-shield\]:\s*https://img\.shields\.io/badge/addon-v[0-9.-]+-blue\.svg',
-        f"[version-shield]: https://img.shields.io/badge/addon-v{badge_version}-blue.svg",
-        readme_content,
-        flags=re.MULTILINE
-    )
-    readme_content = re.sub(
-        r'^\[opencode-shield\]:\s*https://img\.shields\.io/badge/opencode--ai-v[0-9.]+-blue\.svg',
-        f"[opencode-shield]: https://img.shields.io/badge/opencode--ai-v{opencode_ver}-blue.svg",
-        readme_content,
-        flags=re.MULTILINE
-    )
-    readme_content = re.sub(
-        r'^\[openchamber-shield\]:\s*https://img\.shields\.io/badge/@openchamber/web-v[0-9.]+-blue\.svg',
-        f"[openchamber-shield]: https://img.shields.io/badge/@openchamber/web-v{chamber_ver}-blue.svg",
+        r'^\[version-shield\]:\s*https://img\.shields\.io/badge/version-v[0-9.-]+-blue\.svg',
+        new_badge_shield,
         readme_content,
         flags=re.MULTILINE
     )
     with open(readme_path, "w", encoding="utf-8") as f:
         f.write(readme_content)
-    print(f"Updated badges in README.md: addon=v{new_version}, opencode=v{opencode_ver}, openchamber=v{chamber_ver}")
+    print(f"Updated version badge in README.md to v{new_version}")
 
 if __name__ == "__main__":
     main()

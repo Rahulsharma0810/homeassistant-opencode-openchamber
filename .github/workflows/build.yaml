@@ -89,9 +89,7 @@ jobs:
 
       - name: Pull latest changes (including prepare commit)
         run: |
-          git pull "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "${GITHUB_REF_NAME}"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          git pull
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
