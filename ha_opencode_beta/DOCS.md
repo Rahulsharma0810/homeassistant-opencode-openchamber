@@ -67,9 +67,10 @@ OpenChamber is a web interface for OpenCode. It turns the terminal-based coding 
 To enable OpenChamber:
 
 1. In the add-on **Configuration** tab, set **Enable OpenChamber Interface** to `true`.
-2. Configure **OpenChamber Port** (default `3010`) if you want to run it on a non-default port.
-3. In the add-on **Network** settings, map the configured port (e.g. `3010/tcp`) to your host.
-4. Save and restart the add-on.
+2. Set **OpenChamber Password** to a strong password.
+3. Configure **OpenChamber Port** (default `3010`) if you want to run it on a non-default port.
+4. In the add-on **Network** settings, map the configured port (e.g. `3010/tcp`) to your host.
+5. Save and restart the add-on.
 
 Open your browser and navigate to:
 ```
@@ -77,6 +78,8 @@ http://<home-assistant-ip>:<mapped-host-port>
 ```
 
 Like the OpenCode LAN server, only enable and map this port on trusted local networks and never expose it directly to the internet without proper authentication/firewall controls.
+
+OpenChamber is pinned to a specific version at image build time to keep add-on metadata and runtime package contents in sync.
 
 ## PPQ Private TEE Models (Beta)
 

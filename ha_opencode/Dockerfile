@@ -24,6 +24,7 @@ ARG BUILD_VERSION
 ARG BUILD_ARCH
 ARG TTYD_VERSION=1.7.7
 ARG OPENCODE_VERSION=latest
+ARG OPENCHAMBER_VERSION=1.13.8
 ARG PPQ_PROXY_VERSION=0.1.0
 ARG TSX_VERSION=4.20.6
 
@@ -74,12 +75,13 @@ RUN python3 -m venv /opt/zigporter-venv \
     && /opt/zigporter-venv/bin/pip install --no-cache-dir zigporter \
     && ln -s /opt/zigporter-venv/bin/zigporter /usr/local/bin/zigporter
 
-# Install OpenCode, Prettier, and the PPQ private-mode proxy globally
+# Install OpenCode, OpenChamber, Prettier, and the PPQ private-mode proxy globally
 # - OpenCode: AI coding agent (pin version in build.yaml for reproducible builds)
+# - OpenChamber: Web UI for OpenCode (pinned to keep image contents/version metadata deterministic)
 # - Prettier: Code formatter for YAML files, configured for HA conventions
 # - ppq-private-mode: local OpenAI-compatible encryption proxy for PPQ TEE models
 # - tsx: pinned runtime for the PPQ package's TypeScript entrypoint
-RUN npm install -g opencode-ai@${OPENCODE_VERSION} prettier ppq-private-mode@${PPQ_PROXY_VERSION} tsx@${TSX_VERSION} @openchamber/web \
+RUN npm install -g opencode-ai@${OPENCODE_VERSION} @openchamber/web@${OPENCHAMBER_VERSION} prettier ppq-private-mode@${PPQ_PROXY_VERSION} tsx@${TSX_VERSION} \
     && npm cache clean --force
 
 # Copy package.json files first for better layer caching

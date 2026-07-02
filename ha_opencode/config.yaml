@@ -87,6 +87,7 @@ options:
   # Optional OpenChamber interface.
   openchamber_enabled: false
   openchamber_port: 3010
+  openchamber_password: ""
 
   # Long-lived access token for direct HA Core API access.
   # Required for ESPHome ingress and screenshot tool (create at: Profile → Long-Lived Access Tokens).
@@ -140,6 +141,7 @@ schema:
   # OpenChamber interface
   openchamber_enabled: bool
   openchamber_port: int(1024,65535)
+  openchamber_password: password
 
   # HA Core access token
   access_token: password

@@ -31,6 +31,7 @@ Configure the app from the **Configuration** tab in the app page.
 | **Enable OpenCode LAN Server** | `false` | Start an OpenCode server on internal port `4096` so clients on your local network can attach with the OpenCode CLI. Also requires mapping `4096/tcp` in the add-on Network settings. See [LAN Server Mode](#lan-server-mode). |
 | **Enable OpenChamber Interface** | `false` | Enable the OpenChamber web interface for visual workspace engineering with OpenCode. See [OpenChamber Web Interface](#openchamber-web-interface). |
 | **OpenChamber Port** | `3010` | The network port OpenChamber will listen on. |
+| **OpenChamber Password** | `""` | Required password for OpenChamber web access. If empty, OpenChamber stays disabled even when enabled. |
 ### Terminal Appearance
 
 | Option | Default | Description |
@@ -160,9 +161,10 @@ OpenChamber is a web interface for OpenCode. It turns the terminal-based coding 
 To enable OpenChamber:
 
 1. In the add-on **Configuration** tab, set **Enable OpenChamber Interface** to `true`.
-2. Configure **OpenChamber Port** (default `3010`) if you want to run it on a non-default port.
-3. In the add-on **Network** settings, map the configured port (e.g. `3010/tcp`) to your host.
-4. Save and restart the add-on.
+2. Set **OpenChamber Password** to a strong password.
+3. Configure **OpenChamber Port** (default `3010`) if you want to run it on a non-default port.
+4. In the add-on **Network** settings, map the configured port (e.g. `3010/tcp`) to your host.
+5. Save and restart the add-on.
 
 Open your browser and navigate to:
 ```
@@ -170,6 +172,8 @@ http://<home-assistant-ip>:<mapped-host-port>
 ```
 
 Like the OpenCode LAN server, only enable and map this port on trusted local networks and never expose it directly to the internet without proper authentication/firewall controls.
+
+OpenChamber is pinned to a specific version at image build time to keep add-on metadata and runtime package contents in sync.
 
 ### Theme Previews
 
