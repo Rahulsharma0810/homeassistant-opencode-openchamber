@@ -1,0 +1,67 @@
+---
+name: Check upstream opencode/openchamber updates
+
+on:
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  check-upstream:
+    name: Open PR when upstream packages change
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Check pinned versions against npm latest
+        id: check
+        run: |
+          set +e
+          scripts/check-upstream-versions.py
+          STATUS=$?
+          set -e
+
+          if [ "$STATUS" -eq 2 ]; then
+            echo "has_updates=true" >> "$GITHUB_OUTPUT"
+          elif [ "$STATUS" -eq 0 ]; then
+            echo "has_updates=false" >> "$GITHUB_OUTPUT"
+          else
+            exit "$STATUS"
+          fi
+
+      - name: Update pinned versions
+        if: steps.check.outputs.has_updates == 'true'
+        run: scripts/check-upstream-versions.py --update
+
+      - name: Create pull request
+        if: steps.check.outputs.has_updates == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          commit-message: "chore: bump opencode/openchamber pins"
+          title: "chore: bump opencode/openchamber pins"
+          body: |
+            This automated PR updates pinned package versions used by both add-on channels.
+
+            - Always updates `OPENCODE_VERSION` (`opencode-ai`)
+            - Also updates `OPENCHAMBER_VERSION` (`@openchamber/web`) when that pin exists in `build.yaml`
+
+            The workflow runs daily and opens/updates this PR only when upstream npm versions change.
+          branch: ci/bump-upstream-opencode-openchamber
+          delete-branch: true
+          labels: |
+            dependencies
+            automation
+          add-paths: |
+            ha_opencode/build.yaml
+            ha_opencode_beta/build.yaml
