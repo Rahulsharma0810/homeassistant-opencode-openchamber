@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 2.3.0b2
+
+- **Fix OpenChamber under stripped Home Assistant ingress paths** — load the ingress runtime through a relative external script, derive `/api/hassio_ingress/...` in the browser instead of relying on proxy headers, and inject the ingress `<base>` tag before OpenChamber modules/CSS resolve.
+
 ## 2.3.0b1
 
 - **Fix OpenChamber ingress blank page** — serve the Home Assistant ingress runtime as an external same-origin script instead of injecting inline JavaScript, add an ingress-aware `<base>` tag at proxy time, and keep OpenChamber asset/API paths under `/api/hassio_ingress/...` for CSP-compatible loading.

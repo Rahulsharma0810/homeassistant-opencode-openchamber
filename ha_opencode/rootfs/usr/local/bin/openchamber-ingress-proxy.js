@@ -85,21 +85,32 @@ function ingressRuntimeScript(ingressPath) {
     + `  const match = window.location.pathname.match(/^(\\/api\\/hassio_ingress\\/[^/]+)/);\n`
     + `  const basePath = configuredBasePath || (match ? match[1] : "");\n`
     + `  const absoluteBase = basePath ? window.location.origin + basePath : window.location.origin;\n`
+    + `  if (basePath && !document.querySelector("base[data-ha-ingress-base]")) {\n`
+    + `    const base = document.createElement("base");\n`
+    + `    base.setAttribute("data-ha-ingress-base", "");\n`
+    + `    base.href = basePath.replace(/\\/+$/, "") + "/";\n`
+    + `    document.head.prepend(base);\n`
+    + `  }\n`
+    + `  if (typeof window.process === "undefined") window.process = { env: {} };\n`
     + `  window.__OPENCHAMBER_API_BASE_URL__ = absoluteBase;\n`
     + `  window.__OPENCHAMBER_LOCAL_ORIGIN__ = window.location.origin;\n`
     + `  window.__OPENCHAMBER_INGRESS_BASE_PATH__ = basePath;\n`
+    + `  window.__OPENCHAMBER_UPDATE_PWA_MANIFEST__ ||= () => {};\n`
+    + `  window.__OPENCHAMBER_GET_PWA_INSTALL_NAME__ ||= () => "OpenChamber";\n`
+    + `  window.__OPENCHAMBER_SET_PWA_INSTALL_NAME__ ||= (value) => value || "OpenChamber";\n`
+    + `  window.__OPENCHAMBER_SET_PWA_ORIENTATION__ ||= (value) => value || "system";\n`
     + `})();\n`;
 }
 
 function transformHtml(html, ingressPath) {
-  if (!ingressPath) return html;
-  const baseHref = `${ingressPath}/`;
+  const baseHref = ingressPath ? `${ingressPath}/` : "";
+  const runtimeSrc = ingressPath ? `${baseHref}__openchamber_ingress_runtime.js` : "__openchamber_ingress_runtime.js";
   let transformed = html.replace(
     /\s*<script\b[^>]*\bdata-ha-ingress-runtime\b[^>]*>[\s\S]*?<\/script>/g,
     ""
   );
 
-  if (!transformed.includes("data-ha-ingress-base")) {
+  if (ingressPath && !transformed.includes("data-ha-ingress-base")) {
     transformed = transformed.replace(
       /<head([^>]*)>/i,
       `<head$1>\n    <base data-ha-ingress-base href="${escapeHtmlAttribute(baseHref)}">`
@@ -109,13 +120,17 @@ function transformHtml(html, ingressPath) {
   if (!transformed.includes("data-ha-ingress-runtime")) {
     transformed = transformed.replace(
       /\s*<script type="module"/,
-      `\n    <script data-ha-ingress-runtime src="${escapeHtmlAttribute(baseHref)}__openchamber_ingress_runtime.js"></script>\n    <script type="module"`
+      `\n    <script data-ha-ingress-runtime src="${escapeHtmlAttribute(runtimeSrc)}"></script>\n    <script type="module"`
     );
   }
 
-  return transformed.replace(/\b(href|src)="\/(assets\/[^"#?]+(?:[?#][^"]*)?)"/g, `$1="${ingressPath}/$2"`)
-    .replace(/\bhref="\/(favicon[^"#?]*(?:[?#][^"]*)?)"/g, `href="${ingressPath}/$1"`)
-    .replace(/\bhref="\/(apple-touch-icon[^"#?]*(?:[?#][^"]*)?)"/g, `href="${ingressPath}/$1"`);
+  return transformed.replace(/\b(href|src)="\/(assets\/[^"#?]+(?:[?#][^"]*)?)"/g, (_match, attr, path) => {
+    return `${attr}="${ingressPath ? `${ingressPath}/` : ""}${path}"`;
+  }).replace(/\bhref="\/(favicon[^"#?]*(?:[?#][^"]*)?)"/g, (_match, path) => {
+    return `href="${ingressPath ? `${ingressPath}/` : ""}${path}"`;
+  }).replace(/\bhref="\/(apple-touch-icon[^"#?]*(?:[?#][^"]*)?)"/g, (_match, path) => {
+    return `href="${ingressPath ? `${ingressPath}/` : ""}${path}"`;
+  });
 }
 
 function proxyRequest(req, res) {

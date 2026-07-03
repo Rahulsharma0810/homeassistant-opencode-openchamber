@@ -44,6 +44,12 @@ if (!fs.existsSync(assetsDir)) {
 
 let html = fs.readFileSync(indexPath, "utf8");
 html = html.replace(/\s*<script\b[^>]*\bdata-ha-ingress-runtime\b[^>]*>[\s\S]*?<\/script>/g, "");
+if (!html.includes("data-ha-ingress-runtime")) {
+  html = html.replace(
+    /\s*<script type="module"/,
+    '\n    <script data-ha-ingress-runtime src="__openchamber_ingress_runtime.js"></script>\n    <script type="module"'
+  );
+}
 
 // Make initial static assets relative to the current iframe URL. The browser
 // then requests them under /api/hassio_ingress/<token>/..., which Supervisor
