@@ -87,6 +87,7 @@ const apiBuilderReplacement = "const o=t?e.trim().replace(/^\\/+/,\"\"):qo(e);if
 
 let patchedRuntimeUrl = false;
 let patchedApiBuilder = false;
+let patchedApiClassifier = false;
 let patchedServiceWorker = false;
 let patchedViteAssetsUrl = false;
 
@@ -112,6 +113,23 @@ for (const filePath of jsFiles) {
       "API URL builder"
     );
     patchedApiBuilder = true;
+  }
+
+  // The app classifies "/api/*", "/auth/*" and "/health" paths as its own API
+  // and prefixes them with the API base URL. The HA ingress base itself starts
+  // with /api/, so an already-prefixed pathname like
+  // /api/hassio_ingress/<token>/api/fs/read matches the classifier again and
+  // every fetch layer adds one more prefix. Requests then reach OpenChamber
+  // with a residual ingress prefix, fall onto its /api -> OpenCode proxy mount,
+  // and OpenCode answers with its web UI HTML instead of JSON.
+  if (content.includes('t=>t.startsWith("/api/")||t==="/api"||t.startsWith("/auth/")||t==="/auth"||t==="/health"')) {
+    content = replaceOnce(
+      content,
+      't=>t.startsWith("/api/")||t==="/api"||t.startsWith("/auth/")||t==="/auth"||t==="/health"',
+      't=>!t.startsWith("/api/hassio_ingress/")&&(t.startsWith("/api/")||t==="/api"||t.startsWith("/auth/")||t==="/auth"||t==="/health")',
+      "API path classifier"
+    );
+    patchedApiClassifier = true;
   }
 
   if (content.includes('if("serviceWorker"in navigator){')) {
@@ -149,12 +167,16 @@ if (rootAssetReferences.length > 0) {
   fail(`root asset references remain in JS: ${rootAssetReferences.join(", ")}`);
 }
 
+// URLs inside a stylesheet resolve against the stylesheet location, not the
+// document <base>. The CSS files live in dist/assets/ alongside the fonts they
+// reference, so /assets/<file> must become the same-directory reference
+// <file>; "assets/<file>" would resolve to /assets/assets/<file> and 404.
 for (const filePath of cssFiles) {
   const content = fs.readFileSync(filePath, "utf8");
   const patched = content
-    .replace(/url\(\/assets\//g, "url(assets/")
-    .replace(/url\(\"\/assets\//g, 'url("assets/')
-    .replace(/url\('\/assets\//g, "url('assets/");
+    .replace(/url\(\/assets\//g, "url(")
+    .replace(/url\(\"\/assets\//g, 'url("')
+    .replace(/url\('\/assets\//g, "url('");
 
   if (content !== patched) {
     fs.writeFileSync(filePath, patched);
@@ -174,6 +196,9 @@ if (!patchedRuntimeUrl) {
 }
 if (!patchedApiBuilder) {
   fail("API URL builder pattern not found");
+}
+if (!patchedApiClassifier) {
+  fail("API path classifier pattern not found");
 }
 if (!patchedServiceWorker) {
   fail("service worker registration pattern not found");

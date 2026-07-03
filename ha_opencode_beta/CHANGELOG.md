@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 2.3.0b7
+
+- **Fix OpenChamber API calls resolving to HTML under ingress** — patch the app's API path classifier so URLs already carrying the `/api/hassio_ingress/...` base are not prefixed again. The ingress base itself starts with `/api/`, so every client fetch layer re-detected already-prefixed URLs as API paths and stacked additional prefixes; requests then reached OpenChamber with a residual ingress prefix, fell onto its `/api` → OpenCode proxy mount, and OpenCode answered with its web UI HTML. This fixes "Request is not supported by this version of OpenCode Server (Server responded with text/html)" during bootstrap and the failures loading sessions, providers, agents, commands, git status, and the filesystem home directory.
+- **Fix IBM Plex font 404s under ingress** — rewrite CSS font URLs to same-directory references instead of `assets/...`-relative ones. URLs inside a stylesheet resolve against the stylesheet's own location (`.../assets/`), so the previous rewrite produced `/assets/assets/...` requests that 404'd.
+
 ## 2.3.0b6
 
 - **Fix OpenChamber persistent install bypassing ingress patches** — always launch the bundled image OpenChamber binary patched at build time, even when the add-on's `latest` OpenCode update policy puts `/data/.npm-global/bin` first on `PATH`. This prevents an older persistent `@openchamber/web` install from serving root `/assets/...` URLs under Home Assistant ingress.
