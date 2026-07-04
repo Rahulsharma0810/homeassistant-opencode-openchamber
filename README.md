@@ -34,8 +34,8 @@
 #### 🤖 **AI-Powered Editing**
 Use natural language to modify your Home Assistant configuration. No more searching documentation - just ask!
 
-#### 🎨 **Modern Web Terminal**
-Beautiful terminal with 10 professionally designed themes, accessible directly from your HA sidebar.
+#### 🎨 **Two Interface Modes**
+Choose your experience from the sidebar: a beautiful web **terminal** with 10 themes, or the graphical **OpenChamber** web UI — both served through Home Assistant Ingress.
 
 #### 🔌 **Provider Agnostic**
 Works with **75+ AI providers**: Anthropic, OpenAI, Google, Groq, Ollama, and many more.
@@ -134,6 +134,8 @@ Simply run `/connect` and select **OpenCode Zen** to get started for free.
    - Start the add-on
    - Click **Open Web UI** (or use the sidebar)
    - Run `opencode` and use `/connect` to configure your AI provider
+
+   > 💡 **Prefer a graphical interface?** Set **Interface Mode** to `openchamber` in the add-on **Configuration** tab and restart to swap the terminal for the [OpenChamber](https://github.com/openchamber/openchamber) web UI on the same sidebar entry. The default `terminal` mode is unchanged.
 
 ---
 
