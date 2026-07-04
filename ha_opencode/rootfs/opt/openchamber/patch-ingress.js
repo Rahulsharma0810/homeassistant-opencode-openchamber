@@ -83,7 +83,11 @@ const cssFiles = fs.readdirSync(assetsDir)
   .filter((name) => name.endsWith(".css"))
   .map((name) => path.join(assetsDir, name));
 
-const apiBuilderReplacement = "const o=t?e.trim().replace(/^\\/+/,\"\"):qo(e);if(!t)return Jo(o,r);const n=new URL(o,`${t}/`);";
+// The two helper names in the API URL builder are minifier-assigned and drift
+// between releases (qo/Jo in 1.13.8, mn/Sn in 1.13.9), so match the statement
+// structure and carry the captured names into the replacement.
+const apiBuilderPattern = /const o=(\w+)\(e\);if\(!t\)return (\w+)\(o,r\);const n=new URL\(o,`\$\{t\}\/`\);/;
+const apiBuilderReplacement = 'const o=t?e.trim().replace(/^\\/+/,""):$1(e);if(!t)return $2(o,r);const n=new URL(o,`${t}/`);';
 
 let patchedRuntimeUrl = false;
 let patchedApiBuilder = false;
@@ -105,10 +109,10 @@ for (const filePath of jsFiles) {
     patchedRuntimeUrl = true;
   }
 
-  if (content.includes('const o=qo(e);if(!t)return Jo(o,r);const n=new URL(o,`${t}/`);')) {
-    content = replaceOnce(
+  if (apiBuilderPattern.test(content)) {
+    content = replaceRegexOnce(
       content,
-      'const o=qo(e);if(!t)return Jo(o,r);const n=new URL(o,`${t}/`);',
+      apiBuilderPattern,
       apiBuilderReplacement,
       "API URL builder"
     );

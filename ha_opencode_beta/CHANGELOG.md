@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 2.3.0b8
+
+- **OpenChamber updated to 1.13.9** — bumped the pinned `@openchamber/web` version. All five Home Assistant ingress patches are still required and carry forward unchanged in effect; upstream 1.13.9 does not fix any of the ingress issues this add-on patches around. Verified end-to-end against an emulated Supervisor ingress with a headless browser: no URL re-prefixing, no `text/html` API responses, clean bootstrap.
+- **Ingress patch resilience** — the API URL builder patch now matches the minified statement structurally and reuses the captured helper names instead of hardcoding them (`qo`/`Jo` in 1.13.8 became `mn`/`Sn` in 1.13.9). Minifier-assigned names drift between upstream releases; this removes one recurring source of build breakage on future version bumps.
+- **Upstream font change** — OpenChamber 1.13.9 no longer bundles self-hosted IBM Plex webfonts, so the UI falls back to the system font stack. Cosmetic upstream change, not an add-on regression; it also removes the font-404 class of ingress bug entirely.
+
 ## 2.3.0b7
 
 - **Fix OpenChamber API calls resolving to HTML under ingress** — patch the app's API path classifier so URLs already carrying the `/api/hassio_ingress/...` base are not prefixed again. The ingress base itself starts with `/api/`, so every client fetch layer re-detected already-prefixed URLs as API paths and stacked additional prefixes; requests then reached OpenChamber with a residual ingress prefix, fell onto its `/api` → OpenCode proxy mount, and OpenCode answered with its web UI HTML. This fixes "Request is not supported by this version of OpenCode Server (Server responded with text/html)" during bootstrap and the failures loading sessions, providers, agents, commands, git status, and the filesystem home directory.
