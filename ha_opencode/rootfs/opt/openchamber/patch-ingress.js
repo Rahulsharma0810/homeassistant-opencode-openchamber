@@ -94,6 +94,7 @@ let patchedApiBuilder = false;
 let patchedApiClassifier = false;
 let patchedServiceWorker = false;
 let patchedViteAssetsUrl = false;
+let patchedVitePreloadBaseUrl = false;
 
 for (const filePath of jsFiles) {
   let content = fs.readFileSync(filePath, "utf8");
@@ -158,6 +159,16 @@ for (const filePath of jsFiles) {
     patchedViteAssetsUrl = true;
   }
 
+  if (/("modulepreload",\w+=function\()(\w+)(\)\{return)"\/"\+\2(\},\w+=\{\})/.test(content)) {
+    content = replaceRegexOnce(
+      content,
+      /("modulepreload",\w+=function\()(\w+)(\)\{return)"\/"\+\2(\},\w+=\{\})/,
+      "$1$2$3 $2$4",
+      "Vite preload base URL helper"
+    );
+    patchedVitePreloadBaseUrl = true;
+  }
+
   content = content.replace(/(["'`])\/assets\//g, "$1assets/");
 
   if (content !== original) {
@@ -171,6 +182,16 @@ const rootAssetReferences = jsFiles.flatMap((filePath) => {
 });
 if (rootAssetReferences.length > 0) {
   fail(`root asset references remain in JS: ${rootAssetReferences.join(", ")}`);
+}
+
+const rootVitePreloadHelpers = jsFiles.flatMap((filePath) => {
+  const content = fs.readFileSync(filePath, "utf8");
+  return /"modulepreload",\w+=function\((\w+)\)\{return"\/"\+\1\},\w+=\{\}/.test(content)
+    ? [path.basename(filePath)]
+    : [];
+});
+if (rootVitePreloadHelpers.length > 0) {
+  fail(`root Vite preload helpers remain in JS: ${rootVitePreloadHelpers.join(", ")}`);
 }
 
 // URLs inside a stylesheet resolve against the stylesheet location, not the
@@ -211,6 +232,9 @@ if (!patchedServiceWorker) {
 }
 if (!patchedViteAssetsUrl) {
   console.log("OpenChamber Vite preload asset helper not present; skipping helper patch");
+}
+if (!patchedVitePreloadBaseUrl) {
+  console.log("OpenChamber Vite preload base URL helper not present; skipping helper patch");
 }
 
 console.log("OpenChamber bundle patched for Home Assistant Ingress");

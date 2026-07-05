@@ -93,7 +93,8 @@ function transformRootAssetUrls(content, ingressPath) {
     .replace(/(["'`])\/assets\//g, `$1${assetPath}`)
     .replace(/url\((["]?)\/assets\//g, `url($1${assetPath}`)
     .replace(/url\((\')\/assets\//g, `url($1${assetPath}`)
-    .replace(/assetsURL=function\((\w+)\)\{return"\/"\+\1\}/g, "assetsURL=function($1){return $1}");
+    .replace(/assetsURL=function\((\w+)\)\{return"\/"\+\1\}/g, "assetsURL=function($1){return $1}")
+    .replace(/("modulepreload",\w+=function\()(\w+)(\)\{return)"\/"\+\2(\},\w+=\{\})/g, "$1$2$3 $2$4");
 }
 
 function serviceWorkerResetScript() {

@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.3.2b1
+
+- **Fix OpenChamber 1.14.0 Vite preload assets under ingress** — patch the newer Vite modulepreload helper that rewrote `assets/...` dependency entries back to root `/assets/...`, causing 404s and stylesheet MIME errors in Home Assistant Ingress.
+
 ## 2.3.2b0
 
 - **OpenChamber updated to 1.14.0** — bumped the pinned `@openchamber/web` package and carried forward the Home Assistant ingress patching. Upstream 1.14.0 no longer emits the older Vite preload asset helper, so the patcher now treats that helper as optional while still enforcing the API path, API URL, runtime URL, service worker, and root asset rewrites.
