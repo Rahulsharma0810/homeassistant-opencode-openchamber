@@ -51,6 +51,18 @@ jobs:
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "Building beta version: ${VERSION}"
 
+      - name: Get beta build args
+        id: beta_build_args
+        shell: bash
+        run: |
+          OPENCHAMBER_VERSION=$(sed -n 's/^[[:space:]]*OPENCHAMBER_VERSION:[[:space:]]*"\([^"]*\)".*/\1/p' ha_opencode_beta/build.yaml)
+          if [ -z "${OPENCHAMBER_VERSION}" ]; then
+            echo "::error::OPENCHAMBER_VERSION not found in ha_opencode_beta/build.yaml"
+            exit 1
+          fi
+          echo "openchamber_version=${OPENCHAMBER_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Using OpenChamber ${OPENCHAMBER_VERSION} for beta build"
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
@@ -75,6 +87,7 @@ jobs:
             BUILD_FROM=ghcr.io/home-assistant/base-debian:trixie
             BUILD_VERSION=${{ steps.version.outputs.version }}
             BUILD_ARCH=${{ matrix.ha_arch }}
+            OPENCHAMBER_VERSION=${{ steps.beta_build_args.outputs.openchamber_version }}
           cache-from: type=gha,scope=${{ env.IMAGE_NAME }}-${{ matrix.ha_arch }}
           cache-to: type=gha,mode=max,scope=${{ env.IMAGE_NAME }}-${{ matrix.ha_arch }}
           labels: |
