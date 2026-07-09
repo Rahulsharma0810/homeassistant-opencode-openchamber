@@ -207,6 +207,38 @@ These are the user-facing configuration files - the primary way to define Home A
 - `home-assistant_v2.db` - History database (use MCP `get_history`)
 - `home-assistant.log` - Logs (use MCP `get_error_log`)
 
+## Working with YAML on the Command Line (`yq`)
+
+To read, query, or convert YAML from the shell, use **`yq`** (the mikefarah/Go tool, pre-installed on `PATH`). It is the correct tool because it tolerates Home Assistant's custom tags — `!include`, `!secret`, `!env_var`, `!input`, and the `!include_dir_*` family.
+
+**Do NOT reach for `python3 -c "import yaml"` (PyYAML) or Ruby's YAML for HA config** — both crash with a constructor error on the very first `!include`/`!secret`, because those tags are Home Assistant extensions, not standard YAML. `yq` parses them with no setup.
+
+### Read / query (always safe — never errors on HA tags)
+
+```
+yq '.homeassistant.latitude' configuration.yaml      # Print a nested value
+yq '.automation | tag' configuration.yaml            # Inspect the tag itself -> !include
+yq 'keys' configuration.yaml                          # List top-level keys
+yq -o=json '.' configuration.yaml | jq '.sensor'      # Convert to JSON to pipe into jq
+```
+
+Note: output and JSON conversion strip the tag — `!secret home_latitude` prints as `home_latitude`. Use `| tag` when you need to see the tag. Never round-trip a file *through* JSON and back; that permanently loses every `!include`/`!secret`.
+
+### Writing / editing
+
+Prefer the sanctioned write path: **`write_config_safe`** (MCP — validates, backs up, and blocks accidental content loss) or read the full file and use the editor. Reserve `yq -i` for quick, low-risk edits, and only with these two caveats in mind:
+
+1. **A custom tag sticks to the value you overwrite.** `yq -i '.homeassistant.latitude = 52.37'` on a `!secret`-tagged node produces the corrupt `latitude: !secret 52.37`. When replacing a tagged value, reset the tag in the *same* expression:
+   ```
+   yq -i '(.homeassistant.latitude tag = "") | .homeassistant.latitude = 52.37' configuration.yaml
+   ```
+   To *add* a secret reference, set the tag explicitly: `yq -i '.http.api_key = "my_api_key" | .http.api_key tag = "!secret"' configuration.yaml`
+2. **`yq -i` strips blank separator lines** (and collapses inline-comment spacing) across the whole file. No data is lost, but diffs are noisier. When a clean, minimal diff matters, use the editor instead.
+
+### Validation is not a syntax check
+
+`yq` only confirms YAML *parses*. To validate a Home Assistant *configuration* (resolving `!include`/`!secret` and checking integration schemas), use `check_config_syntax` / `write_config_safe` (MCP), not `yq`.
+
 ## YAML Style Guide (MANDATORY)
 
 All YAML written or modified MUST follow the official Home Assistant YAML Style Guide.
@@ -459,6 +491,7 @@ actions:
 - Follow the YAML Style Guide above for ALL configuration changes
 - Use anchors (`&name`) and aliases (`*name`) for DRY configurations
 - Understand `!include`, `!include_dir_named`, `!include_dir_list`, `!include_dir_merge_named`, `!include_dir_merge_list`
+- To read/query these files from the shell use `yq` (tag-tolerant); PyYAML/Ruby crash on HA tags — see "Working with YAML on the Command Line"
 - Know when to use packages for organized configuration
 
 ### Automations

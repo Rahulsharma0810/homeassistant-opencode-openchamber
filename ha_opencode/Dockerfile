@@ -27,6 +27,7 @@ ARG OPENCODE_VERSION=latest
 ARG OPENCHAMBER_VERSION=1.14.0
 ARG PPQ_PROXY_VERSION=0.1.0
 ARG TSX_VERSION=4.20.6
+ARG YQ_VERSION=v4.53.3
 
 # Environment for better Node.js performance
 ENV NODE_ENV=production \
@@ -66,6 +67,17 @@ ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 RUN ARCH=$([ "$BUILD_ARCH" = "aarch64" ] && echo "aarch64" || echo "x86_64") \
     && curl -fsSL "https://github.com/tsl0922/ttyd/releases/download/${TTYD_VERSION}/ttyd.${ARCH}" -o /usr/bin/ttyd \
     && chmod +x /usr/bin/ttyd
+
+# Install yq (mikefarah) from GitHub releases (static Go binary, not in Debian repos).
+# This is the agent's YAML read/query/convert tool: unlike PyYAML or Ruby's YAML, it
+# tolerates Home Assistant's custom tags (!include, !secret, !include_dir_*, !env_var,
+# !input) instead of crashing on them. Release asset names use Debian arch (amd64/arm64).
+# The trailing version assertion fails the build on a truncated/HTML-error download and
+# guards against a colliding non-mikefarah "yq" (e.g. the PyPI jq-wrapper) shadowing it.
+RUN ARCH=$([ "$BUILD_ARCH" = "aarch64" ] && echo "arm64" || echo "amd64") \
+    && curl -fsSL "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_${ARCH}" -o /usr/local/bin/yq \
+    && chmod +x /usr/local/bin/yq \
+    && yq --version | grep -q mikefarah
 
 # Copy hab CLI binary built from source (pinned release)
 # A CLI designed for AI agents to manage HA via REST/WebSocket APIs

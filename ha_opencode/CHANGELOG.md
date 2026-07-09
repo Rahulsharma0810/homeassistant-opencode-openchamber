@@ -6,6 +6,10 @@ All notable changes to this project will be documented in this file.
 - **Native Home Assistant MCP readiness** — `get_agent_capabilities` now probes Home Assistant Core's native MCP endpoints, including `/api/mcp/<API ID>`, and reports whether OpenCode should use regular MCP only or a hybrid native-LLM-API/OpenCode-MCP mode. The opt-in native MCP bridge is being validated in the beta channel first and does not replace OpenCode's built-in MCP tools.
 - **Better Home Assistant context and native LLM development support** — added `get_home_context` for compact area/domain/entity-scoped understanding with registry-derived area/device metadata, plus `get_ha_llm_development_guide` for upstream references, checklist, and a starter template for native `<integration>/llm.py` tool providers.
 
+## 2.3.3
+
+- **Bundled `yq` for Home Assistant-aware YAML on the command line** — the add-on image now ships [`yq`](https://github.com/mikefarah/yq) (mikefarah's static Go build, pinned `v4.53.3`), fetched per-architecture like `ttyd`. It gives the agent a YAML reader/query tool that understands Home Assistant's custom tags — `!include`, `!secret`, `!env_var`, `!input`, and the `!include_dir_*` family — which standard `python3`/PyYAML and Ruby's YAML (neither of which is installed) cannot parse: they abort on the first `!include`. `AGENTS.md` now directs the agent to `yq` for reading, querying, and converting configuration, while writes stay on the existing safe-write path (`write_config_safe`) and note the two `yq -i` caveats (a replaced value keeps its old tag; blank separator lines are dropped).
+
 ## 2.3.2
 
 - **OpenChamber updated to 1.14.0** — bumped the pinned `@openchamber/web` package and promoted the Home Assistant ingress patch updates validated in beta 2.3.2b0-2.3.2b1. The ingress patcher now also handles OpenChamber 1.14.0's newer Vite modulepreload helper, preventing dynamic asset and stylesheet requests from escaping to root `/assets/...` under Home Assistant Ingress.
