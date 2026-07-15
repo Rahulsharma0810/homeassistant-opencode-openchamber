@@ -96,6 +96,13 @@ options:
   # Warning: If you map 4096/tcp in Network settings, this exposes an OpenCode server on your LAN.
   enable_server: false
 
+  # Skills sync (optional): clone a Git repo of OpenCode skills on startup and
+  # keep it in sync. Leave skills_repo empty to disable. skills_repo_token is a
+  # read-only token used only for private repositories (never printed to logs).
+  skills_repo: ""
+  skills_repo_branch: ""
+  skills_repo_token: ""
+
   # Advanced
   # Add-on development guidance for the mounted /addons and /addon_configs folders.
   addon_access_enabled: false
@@ -136,6 +143,11 @@ schema:
 
   # OpenCode LAN server mode
   enable_server: bool
+
+  # Skills sync (optional)
+  skills_repo: str?
+  skills_repo_branch: str?
+  skills_repo_token: password
 
   # Advanced
   addon_access_enabled: bool

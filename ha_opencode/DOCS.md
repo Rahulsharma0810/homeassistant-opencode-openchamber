@@ -101,6 +101,37 @@ If OpenChamber misbehaves (for example after an update), switch **Interface mode
 | **Enable add-on folder guidance** | `false` | Shows terminal guidance for Home Assistant add-on development folders. The add-on mounts `/addons` and `/addon_configs` for development access; `/addon_configs` may contain sensitive add-on data. This is guidance only, not a hard filesystem permission boundary. |
 | **Environment variables** | `[]` | Define custom environment variables that are available to OpenCode and the terminal shell. Each entry has a `name` and `value`. Useful for provider credentials or configuration that must be set as environment variables (e.g. `AZURE_RESOURCE_NAME`, `OPENAI_API_KEY`). Critical system variables (`HOME`, `PATH`, `SUPERVISOR_TOKEN`, etc.) cannot be overridden. |
 | **Custom OpenCode configuration** | `""` | Paste a JSON object to customize OpenCode's own configuration (providers, keybindings, etc.). This is merged with the add-on's built-in config. Leave empty for defaults. See [OpenCode config docs](https://opencode.ai/docs/config) for the full schema. |
+| **Skills repository URL** | `""` | Optional Git repository of OpenCode skills to clone and sync on startup. See [Skills Repository Sync](#skills-repository-sync). |
+| **Skills repository branch** | `""` | Optional branch to track for the skills repository. Empty uses the default branch. |
+| **Skills repository token** | `""` | Optional read-only token for a private skills repository (https:// URLs only). Never logged; not persisted in the checkout's git config. |
+
+### Skills Repository Sync
+
+OpenCode supports [skills](https://opencode.ai/docs/skills) — reusable, self-contained instruction bundles stored under its global skills directory. This add-on can keep that directory in sync with a Git repository you maintain, so the same skills follow you onto your Home Assistant instance.
+
+The intended workflow uses the [skillshare](https://github.com/runkids/skillshare) CLI: you manage a single skills repository on your workstation, and the add-on tracks the same repository.
+
+To enable it:
+
+1. Set **Skills repository URL** to your repo, e.g. `https://github.com/you/skillshare-skills.git`.
+2. (Optional) Set **Skills repository branch** to pin a branch.
+3. For a **private** repository, create a fine-grained personal access token limited to **Contents: read** on that single repository and paste it into **Skills repository token**.
+4. Save and restart the add-on.
+
+On every start the add-on:
+
+- clones the repository on first run (into `/data/.config/skillshare`) and fast-forwards it on later runs;
+- installs the skillshare CLI on demand (persisted under `/data`);
+- syncs the repository's `skills/` folder into OpenCode's global skills directory (`/data/.config/opencode/skills`).
+
+Because state lives in the persistent `/data` volume, skills survive restarts, and a wiped `/data` (for example after a reinstall) self-heals on the next start. To push updates, commit and push to the repository from any machine and restart the add-on (or it will pick them up on its next start).
+
+Notes:
+
+- The repository must be laid out for skillshare (a `skills/` folder of skill directories, each with a `SKILL.md`). A committed `config.yaml` from your workstation is ignored inside the add-on; a container-scoped config is generated so the sync targets the add-on's own skills directory.
+- Token security: the token is only used to build the clone URL in memory. It is never written to logs, and the checkout's `origin` remote is rewritten to a token-free URL so it is not persisted on disk.
+- Only `https://` URLs support the token. `ssh://` URLs are cloned verbatim and would need their own credentials, which this add-on does not provision.
+- If the skillshare CLI cannot be installed (for example, no network), the add-on falls back to copying the repository's `skills/` folder into the skills directory.
 
 ### Resource Usage
 

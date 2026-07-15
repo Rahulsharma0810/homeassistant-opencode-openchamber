@@ -3,6 +3,8 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+- **Optional skills repository sync** — a new opt-in `skills_repo` option lets the add-on clone a Git repository of OpenCode skills (managed with the [skillshare](https://github.com/runkids/skillshare) CLI) on startup and sync its `skills/` folder into OpenCode's global skills directory. It clones on first run and fast-forwards on every restart, so a wiped `/data` self-heals and skills stay current across machines that track the same repo. Private repositories are supported via an optional read-only `skills_repo_token` (https:// URLs only); the token is never logged and is not persisted in the checkout's git config. `skills_repo_branch` pins a branch. When `skills_repo` is empty the feature is completely inert. If the skillshare CLI can't be installed it falls back to a plain copy of the `skills/` folder.
+
 - **Native Home Assistant MCP readiness** — `get_agent_capabilities` now probes Home Assistant Core's native MCP endpoints, including `/api/mcp/<API ID>`, and reports whether OpenCode should use regular MCP only or a hybrid native-LLM-API/OpenCode-MCP mode. The opt-in native MCP bridge is being validated in the beta channel first and does not replace OpenCode's built-in MCP tools.
 - **Better Home Assistant context and native LLM development support** — added `get_home_context` for compact area/domain/entity-scoped understanding with registry-derived area/device metadata, plus `get_ha_llm_development_guide` for upstream references, checklist, and a starter template for native `<integration>/llm.py` tool providers.
 

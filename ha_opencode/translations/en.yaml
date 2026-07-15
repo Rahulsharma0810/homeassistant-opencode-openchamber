@@ -68,6 +68,18 @@ configuration:
     name: "Enable OpenCode LAN server"
     description: "Start an OpenCode server on internal port 4096. To access it from another computer, also map 4096/tcp in the Network settings. Only use this on trusted networks and never expose it to the internet."
 
+  skills_repo:
+    name: "Skills repository URL"
+    description: "Optional. Git repository (https:// or ssh) of OpenCode skills managed with the skillshare CLI. When set, the add-on clones it on startup and syncs its 'skills/' folder into OpenCode's global skills directory, updating on every restart. Leave empty to disable."
+
+  skills_repo_branch:
+    name: "Skills repository branch"
+    description: "Optional branch to track for the skills repository. Leave empty to use the repository's default branch."
+
+  skills_repo_token:
+    name: "Skills repository token"
+    description: "Optional read-only access token for a private skills repository (only used with https:// URLs). Use a fine-grained token limited to 'Contents: read' on that single repository. It is never printed to logs and is not persisted in the checkout's git config."
+
   addon_access_enabled:
     name: "Enable add-on folder guidance"
     description: "Show guidance for working with Home Assistant add-on folders. Security note: /addons and /addon_configs are mounted into this add-on for development access, and /addon_configs may contain sensitive add-on data. This is guidance only, not a hard filesystem permission boundary."

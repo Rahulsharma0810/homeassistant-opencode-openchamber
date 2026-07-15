@@ -1,0 +1,175 @@
+#!/command/with-contenv bashio
+# ==============================================================================
+# OpenCode - Skills Sync (oneshot)
+# ------------------------------------------------------------------------------
+# Optionally clones a Git repository of OpenCode skills (managed with the
+# skillshare CLI, https://github.com/runkids/skillshare) and syncs it into the
+# OpenCode global skills directory so custom skills are available in the add-on.
+#
+# The whole feature is opt-in: it does nothing unless `skills_repo` is set.
+# State lives under /data, so a wiped /data self-heals on the next start.
+# ==============================================================================
+
+SKILLS_REPO=$(bashio::config 'skills_repo' 2>/dev/null || echo "")
+SKILLS_REPO_BRANCH=$(bashio::config 'skills_repo_branch' 2>/dev/null || echo "")
+SKILLS_REPO_TOKEN=$(bashio::config 'skills_repo_token' 2>/dev/null || echo "")
+
+# bashio returns the literal string "null" for empty optional values.
+[ "${SKILLS_REPO}" = "null" ] && SKILLS_REPO=""
+[ "${SKILLS_REPO_BRANCH}" = "null" ] && SKILLS_REPO_BRANCH=""
+[ "${SKILLS_REPO_TOKEN}" = "null" ] && SKILLS_REPO_TOKEN=""
+
+if [ -z "${SKILLS_REPO}" ]; then
+    # Feature disabled - nothing to do.
+    exit 0
+fi
+
+bashio::log.info "Skills sync: enabled (repo configured)"
+
+# Match the runtime environment prepared by init-opencode so skills land in the
+# same place OpenCode reads them from, and so a runtime-updated toolchain is on
+# PATH.
+export HOME="/data"
+export XDG_DATA_HOME="/data/.local/share"
+export XDG_CONFIG_HOME="/data/.config"
+export NPM_CONFIG_PREFIX="/data/.npm-global"
+export PATH="${NPM_CONFIG_PREFIX}/bin:/usr/local/bin:/usr/bin:/bin:${PATH}"
+
+SKILLSHARE_HOME="/data/.config/skillshare"
+SKILLS_TARGET="/data/.config/opencode/skills"
+mkdir -p "${XDG_CONFIG_HOME}/opencode"
+
+# ------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
+# Authentication for private repos.
+#
+# The token is supplied to git via a GIT_ASKPASS helper so it is never embedded
+# in the remote URL, the process argv (visible via ps / /proc), or .git/config.
+# The `origin` remote always stays the token-free URL the user configured.
+# Only https:// URLs use the token; ssh/other URLs are used verbatim and would
+# need their own credentials.
+# ------------------------------------------------------------------------------
+export GIT_TERMINAL_PROMPT=0
+
+ASKPASS_SCRIPT=""
+if [ -n "${SKILLS_REPO_TOKEN}" ]; then
+    case "${SKILLS_REPO}" in
+        https://*)
+            ASKPASS_SCRIPT="/data/.cache/.skills-askpass"
+            mkdir -p "$(dirname "${ASKPASS_SCRIPT}")"
+            # git calls this twice: once for "Username", once for "Password".
+            # Reply with a static username for the first prompt and the token for
+            # the second. The token is passed through the environment, not argv.
+            {
+                printf '%s\n' '#!/bin/sh'
+                printf '%s\n' 'case "$1" in'
+                printf '%s\n' '  *[Uu]sername*) printf "oauth2\n" ;;'
+                printf '%s\n' '  *) printf "%s\n" "${SKILLS_REPO_TOKEN}" ;;'
+                printf '%s\n' 'esac'
+            } > "${ASKPASS_SCRIPT}"
+            chmod 700 "${ASKPASS_SCRIPT}"
+            export SKILLS_REPO_TOKEN
+            export GIT_ASKPASS="${ASKPASS_SCRIPT}"
+            ;;
+        *)
+            bashio::log.warning "Skills sync: skills_repo_token is only used with https:// URLs; ignoring token"
+            export GIT_ASKPASS=/bin/true
+            ;;
+    esac
+else
+    # Never let a missing credential turn into an interactive prompt.
+    export GIT_ASKPASS=/bin/true
+fi
+
+cleanup() {
+    [ -n "${ASKPASS_SCRIPT}" ] && rm -f "${ASKPASS_SCRIPT}"
+}
+trap cleanup EXIT
+
+# ------------------------------------------------------------------------------
+# Clone (first run) or update (subsequent runs). The remote URL is always the
+# token-free ${SKILLS_REPO}; auth flows through GIT_ASKPASS only.
+# ------------------------------------------------------------------------------
+if [ -d "${SKILLSHARE_HOME}/.git" ]; then
+    bashio::log.info "Skills sync: updating existing checkout"
+    git -C "${SKILLSHARE_HOME}" remote set-url origin "${SKILLS_REPO}" >/dev/null 2>&1 || true
+    if ! git -C "${SKILLSHARE_HOME}" fetch --prune origin >/dev/null 2>&1; then
+        bashio::log.warning "Skills sync: git fetch failed; keeping existing skills"
+    else
+        BRANCH="${SKILLS_REPO_BRANCH}"
+        [ -z "${BRANCH}" ] && BRANCH=$(git -C "${SKILLSHARE_HOME}" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
+        if [ -n "${BRANCH}" ] && [ "${BRANCH}" != "HEAD" ]; then
+            git -C "${SKILLSHARE_HOME}" reset --hard "origin/${BRANCH}" >/dev/null 2>&1 \
+                || bashio::log.warning "Skills sync: could not fast-forward to origin/${BRANCH}"
+        fi
+    fi
+else
+    bashio::log.info "Skills sync: cloning skills repository"
+    rm -rf "${SKILLSHARE_HOME}"
+    CLONE_ARGS=(--depth 1)
+    [ -n "${SKILLS_REPO_BRANCH}" ] && CLONE_ARGS+=(--branch "${SKILLS_REPO_BRANCH}")
+    if ! git clone "${CLONE_ARGS[@]}" "${SKILLS_REPO}" "${SKILLSHARE_HOME}" >/dev/null 2>&1; then
+        bashio::log.error "Skills sync: clone failed. Check skills_repo, branch, and token."
+        exit 0
+    fi
+fi
+
+# ------------------------------------------------------------------------------
+# Ensure the skillshare CLI is available (persisted under /data via npm prefix).
+# ------------------------------------------------------------------------------
+if ! command -v skillshare >/dev/null 2>&1; then
+    bashio::log.info "Skills sync: installing skillshare CLI"
+    if ! npm install -g skillshare >/dev/null 2>&1; then
+        bashio::log.warning "Skills sync: could not install skillshare CLI; falling back to plain copy"
+    fi
+fi
+
+# ------------------------------------------------------------------------------
+# Sync the repository's skills/ folder into OpenCode's global skills directory.
+#
+# skillshare reads its global config from $XDG_CONFIG_HOME/skillshare. To keep
+# the cloned repository pristine (no generated config.yaml committed into the
+# working tree), we run skillshare against a dedicated runtime config directory
+# whose source points at the checkout's skills/ folder.
+# ------------------------------------------------------------------------------
+SKILLSHARE_RUNTIME="/data/.skills-sync-runtime"
+
+sync_with_skillshare() {
+    command -v skillshare >/dev/null 2>&1 || return 1
+    [ -d "${SKILLSHARE_HOME}/skills" ] || return 1
+    mkdir -p "${SKILLSHARE_RUNTIME}/skillshare"
+    cat > "${SKILLSHARE_RUNTIME}/skillshare/config.yaml" <<EOF
+sources:
+  skills: ${SKILLSHARE_HOME}/skills
+mode: copy
+targets:
+  opencode:
+    skills:
+      path: ${SKILLS_TARGET}
+ignore:
+  - .DS_Store
+  - .git/
+EOF
+    # Point skillshare's global config at the runtime dir via XDG_CONFIG_HOME
+    # for this invocation only, without disturbing OpenCode's own config.
+    XDG_CONFIG_HOME="${SKILLSHARE_RUNTIME}" skillshare sync --global --force --no-tui >/dev/null 2>&1
+}
+
+# Plain-copy fallback used when skillshare is unavailable.
+sync_with_copy() {
+    [ -d "${SKILLSHARE_HOME}/skills" ] || return 1
+    mkdir -p "${SKILLS_TARGET}"
+    # Mirror repo skills into the target without deleting unrelated skills.
+    cp -a "${SKILLSHARE_HOME}/skills/." "${SKILLS_TARGET}/" 2>/dev/null
+}
+
+if sync_with_skillshare; then
+    bashio::log.info "Skills sync: synced via skillshare into ${SKILLS_TARGET}"
+elif sync_with_copy; then
+    bashio::log.info "Skills sync: copied skills into ${SKILLS_TARGET}"
+else
+    bashio::log.warning "Skills sync: no skills/ directory found in repository"
+fi
+
+bashio::log.info "Skills sync: complete"
+exit 0
