@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.3.6b2
+
+- **Optional focus-friendly response mode** — added a disabled-by-default **Focus-friendly response mode** option that applies action-first, numbered, progress-aware response guidance to both the terminal and OpenChamber interfaces. It changes response formatting only and preserves Home Assistant approval, validation, and safety requirements. Inspired by [@ayghri's `i-have-adhd`](https://github.com/ayghri/i-have-adhd); thanks to Ayoub Ghriss for publishing the upstream skill.
+
 ## 2.3.6b1
 
 - **OpenChamber updated to 1.16.2** — bumped the pinned `@openchamber/web` from 1.14.0 to the latest 1.16.2, and reworked the Home Assistant Ingress bundle patcher (`patch-ingress.js`) so it no longer breaks on OpenChamber's minified-name drift. The four required patches (runtime URL builder, API URL builder, API path classifier, service-worker) now match the bundle structurally and reuse the captured minifier names instead of hardcoding them, so the patch is validated to apply cleanly across 1.14.x through 1.16.2 and is more resilient to future version bumps. The bundle still binds to `127.0.0.1` behind the first-party ingress proxy as before.

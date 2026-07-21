@@ -24,6 +24,10 @@ configuration:
     name: "Enable MCP integration"
     description: "Enable the Model Context Protocol (MCP) server that lets OpenCode query entities and call services directly, so you can ask for things like turning on the living room lights or checking the bedroom temperature."
 
+  focus_mode:
+    name: "Focus-friendly response mode (beta)"
+    description: "Use action-first, concise, progress-aware responses that are easier to scan and execute. This changes response formatting only; it does not change permissions or safety confirmations. Restart the add-on after changing this option."
+
   native_ha_mcp_enabled:
     name: "Enable native Home Assistant MCP bridge"
     description: "Add an optional second MCP server in OpenCode that proxies to Home Assistant Core's native LLM MCP endpoint (/api/mcp/<API ID>) when your Home Assistant version supports it. Leave disabled unless you are testing the new Home Assistant native LLM/MCP platform. This complements, but does not replace, OpenCode's built-in MCP tools."

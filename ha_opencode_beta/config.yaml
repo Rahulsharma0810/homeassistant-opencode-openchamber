@@ -1,7 +1,7 @@
 ---
 name: "OpenCode Beta"
 description: "Beta channel for OpenCode - AI coding agent for Home Assistant. May contain experimental features."
-version: "2.3.6b1"
+version: "2.3.6b2"
 slug: "ha_opencode_beta"
 image: "ghcr.io/magnusoverli/ha_opencode_beta"
 url: "https://github.com/magnusoverli/opencode"
@@ -63,6 +63,8 @@ options:
 
   # Home Assistant integration
   mcp_enabled: true
+  # Optional action-first response formatting for easier scanning and execution.
+  focus_mode: false
   # Optional bridge to Home Assistant Core's native /api/mcp/<API ID> endpoint.
   # Requires a Home Assistant version that includes the native MCP keyed endpoint.
   native_ha_mcp_enabled: false
@@ -132,6 +134,7 @@ schema:
 
   # Home Assistant integration
   mcp_enabled: bool
+  focus_mode: bool
   native_ha_mcp_enabled: bool
   native_ha_mcp_api_id: str?
   lsp_enabled: bool
