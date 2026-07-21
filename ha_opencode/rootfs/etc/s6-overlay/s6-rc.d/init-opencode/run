@@ -24,6 +24,7 @@ LSP_ENABLED=$(bashio::config 'lsp_enabled' || echo "true")
 SCREENSHOT_ENABLED=$(bashio::config 'screenshot_enabled' || echo "false")
 ADDON_ACCESS_ENABLED=$(bashio::config 'addon_access_enabled' || echo "false")
 PPQ_PRIVATE_ENABLED=$(bashio::config 'ppq_private_enabled' || echo "false")
+RESTRICT_SENSITIVE_FILES=$(bashio::config 'restrict_sensitive_files' 2>/dev/null || echo "true")
 
 ACCESS_TOKEN=$(bashio::config 'access_token' || echo "")
 PPQ_API_KEY=$(bashio::config 'ppq_api_key' || echo "")
@@ -41,7 +42,7 @@ case "${OPENCODE_UPDATE_POLICY}" in
         ;;
 esac
 
-bashio::log.info "Configuration: INTERFACE_MODE=${INTERFACE_MODE} MCP=${MCP_ENABLED} NATIVE_HA_MCP=${NATIVE_HA_MCP_ENABLED} NATIVE_HA_MCP_API_ID=${NATIVE_HA_MCP_API_ID} LSP=${LSP_ENABLED} SCREENSHOT=${SCREENSHOT_ENABLED} PPQ_PRIVATE=${PPQ_PRIVATE_ENABLED} ADDON_ACCESS=${ADDON_ACCESS_ENABLED} CPU_MODE=${CPU_MODE_CONFIG} OPENCODE_UPDATE_POLICY=${OPENCODE_UPDATE_POLICY}"
+bashio::log.info "Configuration: INTERFACE_MODE=${INTERFACE_MODE} MCP=${MCP_ENABLED} NATIVE_HA_MCP=${NATIVE_HA_MCP_ENABLED} NATIVE_HA_MCP_API_ID=${NATIVE_HA_MCP_API_ID} LSP=${LSP_ENABLED} SCREENSHOT=${SCREENSHOT_ENABLED} PPQ_PRIVATE=${PPQ_PRIVATE_ENABLED} ADDON_ACCESS=${ADDON_ACCESS_ENABLED} CPU_MODE=${CPU_MODE_CONFIG} OPENCODE_UPDATE_POLICY=${OPENCODE_UPDATE_POLICY} RESTRICT_SENSITIVE_FILES=${RESTRICT_SENSITIVE_FILES}"
 
 # Set up persistent HOME and npm global prefix for OpenCode runtime updates.
 export HOME="/data"
@@ -362,106 +363,88 @@ detect_cpu_capabilities
 
 # ==============================================================================
 # Install/verify OpenCode through the upstream opencode-ai package
+#
+# The heavy `npm install -g opencode-ai@latest` no longer runs on the boot
+# critical path. This oneshot only guarantees a *working* opencode binary — the
+# bundled one, or a healthy persistent install — so the ingress health check can
+# come up immediately. When the user opts into rolling updates, the refresh is
+# handed to a detached background updater and skipped entirely on low-RAM hosts,
+# so a slow/failing npm install can never OOM the container or trip the
+# watchdog into a crash loop. Shared helpers live in one place (runtime.sh) so
+# the init and updater paths cannot drift.
 # ==============================================================================
 
-opencode_package_version() {
-    local package_dir="$1"
-    if [ -f "${package_dir}/package.json" ]; then
-        node -e "console.log(require('${package_dir}/package.json').version)" 2>/dev/null || echo "unknown"
-    else
-        echo "not-installed"
-    fi
-}
+opencode_log() { bashio::log.info "$*"; }
+# shellcheck source=/usr/local/lib/opencode/runtime.sh
+source /usr/local/lib/opencode/runtime.sh
 
-select_opencode_package_binary() {
-    local package_dir="$1"
-    local mode="$2"
-    local machine
-    local source_binary=""
-    local target_binary="${package_dir}/bin/opencode.exe"
+# Free memory (kB) below which the background "latest" update is skipped, so the
+# npm spike cannot tip a low-RAM device (e.g. a 4 GB HA Green already running
+# several add-ons) into swap-thrash and a watchdog crash loop.
+OPENCODE_UPDATE_MIN_AVAIL_KB=1572864  # 1.5 GiB
 
-    machine=$(uname -m)
-
-    case "${machine}" in
-        x86_64)
-            if [ "${mode}" = "baseline" ]; then
-                source_binary="${package_dir}/node_modules/opencode-linux-x64-baseline/bin/opencode"
-            else
-                source_binary="${package_dir}/node_modules/opencode-linux-x64/bin/opencode"
-            fi
-            ;;
-        aarch64|arm64)
-            source_binary="${package_dir}/node_modules/opencode-linux-arm64/bin/opencode"
-            mode="regular"
-            ;;
-        *)
-            bashio::log.warning "Unknown architecture $(uname -m); leaving OpenCode package binary unchanged"
-            return 0
-            ;;
-    esac
-
-    if [ ! -x "${source_binary}" ]; then
-        bashio::log.warning "OpenCode ${mode} binary not found at ${source_binary}; leaving package binary unchanged"
-        return 1
-    fi
-
-    mkdir -p "$(dirname "${target_binary}")"
-    rm -f "${target_binary}"
-    if ! ln "${source_binary}" "${target_binary}" 2>/dev/null; then
-        cp "${source_binary}" "${target_binary}"
-    fi
-    chmod +x "${target_binary}"
-    bashio::log.info "OpenCode package binary selected: ${mode} (${source_binary})"
+available_memory_kb() {
+    awk '/^MemAvailable:/ { print $2; found = 1 }
+         END { if (!found) print 0 }' /proc/meminfo 2>/dev/null || echo 0
 }
 
 setup_opencode_runtime() {
-    local cpu_mode
-    local bundled_package="/usr/local/lib/node_modules/opencode-ai"
-    local runtime_package="${NPM_CONFIG_PREFIX}/lib/node_modules/opencode-ai"
-    local bundled_version
-    local runtime_version
-    local runtime_available=false
+    local cpu_mode bundled_package runtime_package persistent_bin bundled_bin
+    local bundled_version runtime_version effective_bin effective_version
+    local use_persistent=false
+    bundled_package="/usr/local/lib/node_modules/opencode-ai"
+    runtime_package="${NPM_CONFIG_PREFIX}/lib/node_modules/opencode-ai"
+    persistent_bin="${NPM_CONFIG_PREFIX}/bin/opencode"
+    bundled_bin="/usr/local/bin/opencode"
 
     cpu_mode=$(cat /data/.cpu_mode 2>/dev/null || echo "regular")
     bundled_version=$(opencode_package_version "${bundled_package}")
-    runtime_version=$(opencode_package_version "${runtime_package}")
-
     bashio::log.info "Bundled OpenCode version: ${bundled_version}"
 
-    if [ "${OPENCODE_UPDATE_POLICY}" = "latest" ]; then
-        if [ "${runtime_version}" != "not-installed" ]; then
-            bashio::log.info "Persistent OpenCode version before update: ${runtime_version}"
-        fi
-
-        bashio::log.info "Updating persistent OpenCode install: npm install -g opencode-ai@latest"
-        if timeout 300 npm install -g opencode-ai@latest --loglevel=error >/tmp/opencode-npm-install.log 2>&1; then
-            runtime_version=$(opencode_package_version "${runtime_package}")
-            bashio::log.info "Persistent OpenCode version after update: ${runtime_version}"
+    # --- Synchronous: pick a binary that actually runs, without touching the
+    #     network, so ingress is never gated behind an install. ---
+    if [ "${OPENCODE_UPDATE_POLICY}" = "latest" ] && [ -d "${runtime_package}" ]; then
+        runtime_version=$(opencode_package_version "${runtime_package}")
+        opencode_select_package_binary "${runtime_package}" "${cpu_mode}" || true
+        if opencode_bin_runs "${persistent_bin}"; then
+            use_persistent=true
+            bashio::log.info "Using persistent OpenCode runtime: ${runtime_version}"
         else
-            bashio::log.warning "OpenCode runtime update failed; continuing with existing runtime install or bundled fallback"
-            bashio::log.warning "See /tmp/opencode-npm-install.log inside the container for npm details"
-        fi
-
-        if [ -x "${runtime_package}/bin/opencode.exe" ]; then
-            select_opencode_package_binary "${runtime_package}" "${cpu_mode}" || true
-            runtime_available=true
-        else
-            bashio::log.warning "No persistent OpenCode binary found under ${NPM_CONFIG_PREFIX}; using bundled OpenCode"
+            # A boot-time install killed mid-way leaves the launcher on PATH
+            # with its native binary missing ("cannot execute: required file
+            # not found"). Drop it so PATH falls through to the bundled binary;
+            # the background updater will reinstall it cleanly.
+            bashio::log.warning "Persistent OpenCode runtime is broken; removing it and using the bundled binary"
+            rm -rf "${runtime_package}" "${persistent_bin}"
         fi
     fi
 
-    if [ "${OPENCODE_UPDATE_POLICY}" = "bundled" ] || [ "${runtime_available}" != "true" ]; then
-        select_opencode_package_binary "${bundled_package}" "${cpu_mode}" || true
+    if [ "${use_persistent}" != "true" ]; then
+        opencode_select_package_binary "${bundled_package}" "${cpu_mode}" || true
+        if ! opencode_bin_runs "${bundled_bin}"; then
+            bashio::log.error "Bundled OpenCode binary failed to execute; the terminal may not start correctly"
+        fi
     fi
 
-    local effective_bin
-    local effective_version
     effective_bin=$(command -v opencode 2>/dev/null || echo "not-found")
     effective_version=$(opencode --version 2>/dev/null || echo "unknown")
     printf '%s\n' "${effective_bin}" > /data/.opencode_bin
     printf '%s\n' "${effective_version}" > /data/.opencode_version
     bashio::log.info "Effective OpenCode binary: ${effective_bin}"
     bashio::log.info "Effective OpenCode version: ${effective_version}"
+
+    # --- Background: refresh to the newest OpenCode off the critical path, and
+    #     only when there is headroom to absorb the npm spike. ---
+    if [ "${OPENCODE_UPDATE_POLICY}" = "latest" ]; then
+        local avail_kb
+        avail_kb=$(available_memory_kb)
+        if [ "${avail_kb}" -ge "${OPENCODE_UPDATE_MIN_AVAIL_KB}" ]; then
+            bashio::log.info "Scheduling background OpenCode update (MemAvailable ${avail_kb} kB); applies to the next session"
+            setsid /usr/local/bin/opencode-update.sh >/tmp/opencode-update.log 2>&1 </dev/null &
+        else
+            bashio::log.warning "Skipping OpenCode update: MemAvailable ${avail_kb} kB is below the ${OPENCODE_UPDATE_MIN_AVAIL_KB} kB needed; keeping the bundled runtime to protect low-memory systems"
+        fi
+    fi
 }
 
 setup_opencode_runtime
@@ -630,14 +613,26 @@ MCP_BOOL=$([ "${MCP_ENABLED}" = "true" ] && echo "true" || echo "false")
 NATIVE_HA_MCP_BOOL=$([ "${NATIVE_HA_MCP_ENABLED}" = "true" ] && echo "true" || echo "false")
 LSP_DISABLED=$([ "${LSP_ENABLED}" = "true" ] && echo "false" || echo "true")
 PPQ_PROVIDER_ENABLED=$([ "${PPQ_PRIVATE_ENABLED}" = "true" ] && [ "${PPQ_API_KEY_CONFIGURED}" = "true" ] && echo "true" || echo "false")
+RESTRICT_BOOL=$([ "${RESTRICT_SENSITIVE_FILES}" = "true" ] && echo "true" || echo "false")
 
-jq --arg native_ha_mcp_api_id "${NATIVE_HA_MCP_API_ID}" --argjson mcp "${MCP_BOOL}" --argjson native_ha_mcp "${NATIVE_HA_MCP_BOOL}" --argjson lsp_disabled "${LSP_DISABLED}" --argjson ppq "${PPQ_PROVIDER_ENABLED}" '
+jq --arg native_ha_mcp_api_id "${NATIVE_HA_MCP_API_ID}" --argjson mcp "${MCP_BOOL}" --argjson native_ha_mcp "${NATIVE_HA_MCP_BOOL}" --argjson lsp_disabled "${LSP_DISABLED}" --argjson ppq "${PPQ_PROVIDER_ENABLED}" --argjson restrict "${RESTRICT_BOOL}" '
     .mcp.homeassistant.enabled = $mcp |
     .mcp.homeassistant.environment.HA_NATIVE_MCP_API_ID = $native_ha_mcp_api_id |
     .mcp.homeassistant_native.enabled = ($mcp and $native_ha_mcp) |
     .mcp.homeassistant_native.command = ["node", "/opt/ha-mcp-server/ha-native-mcp-proxy.js", $native_ha_mcp_api_id] |
     .mcp.homeassistant_native.environment.HA_NATIVE_MCP_API_ID = $native_ha_mcp_api_id |
     if $lsp_disabled then .lsp["ha-yaml"].disabled = true else del(.lsp["ha-yaml"].disabled) end |
+    if $restrict then
+        .permission.read = {
+            "*": "allow",
+            "*secrets.yaml": "deny",
+            "*.storage/*": "deny",
+            "*.cloud/*": "deny",
+            "*ssl/*": "deny",
+            "*.key": "deny",
+            "*.pem": "deny"
+        }
+    else del(.permission.read) end |
     if $ppq then
         .provider = (.provider // {}) |
         .provider["ppq-private"] = {
@@ -651,23 +646,28 @@ jq --arg native_ha_mcp_api_id "${NATIVE_HA_MCP_API_ID}" --argjson mcp "${MCP_BOO
             },
             "models": {
                 "private/kimi-k2-5": {
+                    "id": "private/kimi-k2-5",
                     "name": "Kimi K2.5 (Private)",
                     "limit": { "context": 262144, "output": 8192 }
                 },
                 "private/deepseek-r1-0528": {
+                    "id": "private/deepseek-r1-0528",
                     "name": "DeepSeek R1 (Private)",
                     "reasoning": true,
                     "limit": { "context": 131072, "output": 8192 }
                 },
                 "private/gpt-oss-120b": {
+                    "id": "private/gpt-oss-120b",
                     "name": "GPT-OSS 120B (Private)",
                     "limit": { "context": 131072, "output": 8192 }
                 },
                 "private/llama3-3-70b": {
+                    "id": "private/llama3-3-70b",
                     "name": "Llama 3.3 70B (Private)",
                     "limit": { "context": 131072, "output": 8192 }
                 },
                 "private/qwen3-vl-30b": {
+                    "id": "private/qwen3-vl-30b",
                     "name": "Qwen3-VL 30B (Private)",
                     "attachment": true,
                     "limit": { "context": 262144, "output": 8192 }

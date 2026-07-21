@@ -24,6 +24,8 @@
 
 **OpenCode** brings the revolutionary [OpenCode](https://opencode.ai) AI coding agent directly into your Home Assistant instance. Experience intelligent configuration editing through natural language, advanced YAML assistance, and deep integration via the Model Context Protocol (MCP).
 
+> **Upstream attribution:** This is an independent Home Assistant add-on that redistributes and integrates [OpenCode](https://github.com/anomalyco/opencode), © 2025 opencode, under the MIT License. It is not made by, affiliated with, or endorsed by the OpenCode team or Anomaly. See the [third-party notices](THIRD-PARTY-LICENSES.md).
+
 
 ### 🎯 Key Features
 
@@ -296,6 +298,8 @@ See the [contributors page](https://github.com/magnusoverli/opencode/graphs/cont
 ## 📜 License
 
 This is free and unencumbered software released into the public domain - see the [UNLICENSE](UNLICENSE) file for details.
+
+This distribution also includes third-party software, including OpenCode. Its copyright notices and license terms are retained in [THIRD-PARTY-LICENSES.md](THIRD-PARTY-LICENSES.md) and in the add-on image at `/usr/share/doc/ha-opencode/NOTICE`.
 
 ---
 

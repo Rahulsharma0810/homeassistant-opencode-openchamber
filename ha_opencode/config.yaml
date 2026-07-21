@@ -1,7 +1,7 @@
 ---
 name: "OpenCode"
 description: "AI coding agent for editing Home Assistant configuration with deep MCP integration and LSP support"
-version: "2.3.3"
+version: "2.3.5"
 slug: "ha_opencode"
 image: "ghcr.io/magnusoverli/ha_opencode"
 url: "https://github.com/magnusoverli/opencode"
@@ -64,6 +64,10 @@ options:
   # Home Assistant integration
   mcp_enabled: true
   lsp_enabled: true
+  # Security: deny the AI read access to secret files (secrets.yaml, .storage,
+  # .cloud, ssl, *.key, *.pem) so their contents cannot reach the model. Set to
+  # false to restore fully unrestricted file access (the previous behavior).
+  restrict_sensitive_files: true
   # Screenshot tool: visual verification of dashboards and UI changes.
   # Requires the access token below to authenticate with the HA frontend.
   screenshot_enabled: false
@@ -73,8 +77,11 @@ options:
   access_token: ""
 
   # OpenCode runtime
-  # Update policy: latest (persistent runtime updates) or bundled (image version only)
-  opencode_update_policy: "latest"
+  # Update policy: bundled (use the OpenCode shipped in the add-on image;
+  # default, lowest resource use) or latest (keep OpenCode updated to the newest
+  # release in the background — the update is skipped automatically on low-memory
+  # systems and never blocks start-up)
+  opencode_update_policy: "bundled"
   # CPU mode: auto (detect), baseline (for older CPUs), regular (force AVX2)
   cpu_mode: "auto"
 
@@ -122,6 +129,7 @@ schema:
   # Home Assistant integration
   mcp_enabled: bool
   lsp_enabled: bool
+  restrict_sensitive_files: bool
   screenshot_enabled: bool
   access_token: password
 

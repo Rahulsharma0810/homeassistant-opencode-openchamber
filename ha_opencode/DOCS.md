@@ -2,6 +2,15 @@
 
 OpenCode is an AI-powered coding agent that helps you edit and manage your Home Assistant configuration directly from your browser.
 
+## Upstream Attribution
+
+This independent Home Assistant add-on redistributes and integrates
+[OpenCode](https://github.com/anomalyco/opencode), copyright (c) 2025 opencode, under the
+MIT License. It is not made by, affiliated with, or endorsed by the OpenCode
+team or Anomaly. The complete OpenCode notice is included in the add-on image
+at `/usr/share/doc/ha-opencode/NOTICE` and in this repository's
+[`THIRD-PARTY-LICENSES.md`](../THIRD-PARTY-LICENSES.md).
+
 ## Features
 
 - **AI-Powered Editing**: Use natural language to modify your Home Assistant configuration
@@ -68,14 +77,30 @@ If OpenChamber misbehaves (for example after an update), switch **Interface mode
 |--------|---------|-------------|
 | **Enable MCP integration** | `true` | Enable the Model Context Protocol (MCP) server for deep Home Assistant integration. Includes 37 tools, 14 resources, 6 guided prompts, and an intelligence layer for anomaly detection, config validation, and automation suggestions. |
 | **Enable LSP integration** | `true` | Enable the Language Server Protocol (LSP) server for intelligent YAML editing. Provides entity/service autocomplete, hover documentation, diagnostics for unknown entities, and go-to-definition for !include tags. |
+| **Restrict access to sensitive files** | `true` | Deny the AI read access to secret/credential files (`secrets.yaml`, `.storage/`, `.cloud/`, `ssl/`, `*.key`, `*.pem`) so their contents cannot reach the model. Everything else stays readable. Set to `false` to restore fully unrestricted file access. See [Sensitive File Protection](#sensitive-file-protection). |
 | **Enable screenshot tool** | `false` | Enable visual verification of dashboards and UI pages. Uses headless Chromium to capture screenshots that vision-capable AI models can analyze. Requires the access token below. See [Visual Verification](#visual-verification-screenshots). |
 | **Home Assistant access token** | `""` | A long-lived access token for direct communication with Home Assistant Core. Required for ESPHome integration and the screenshot tool. Create one in the Home Assistant UI under Profile → Long-lived access tokens. |
+
+### Sensitive File Protection
+
+By default (**Restrict access to sensitive files** = `true`), the add-on adds an OpenCode `permission.read` rule that blocks the AI's file-**read** tool from opening files that typically hold secrets or credentials, so their contents can't be pulled into the model's context:
+
+- `secrets.yaml` (and any path ending in `secrets.yaml`)
+- the `.storage/` directory (auth/refresh tokens, cloud, application credentials)
+- the `.cloud/` directory (Nabu Casa cloud)
+- the `ssl/` directory, and any `*.key` / `*.pem` files
+
+Everything else stays fully readable, and this doesn't change how the agent edits normal configuration that *references* secrets via `!secret` — it never needs the secret's value to do that. The Home Assistant MCP tools are unaffected; they read live state through the API, not these files.
+
+**To restore the previous, fully-permissive behavior,** set **Restrict access to sensitive files** to `false` and restart the add-on. You can also fine-tune individual paths — re-allow one, add more denials, or extend the same protection to the edit tool — via **Custom OpenCode configuration** using OpenCode's [permission rules](https://opencode.ai/docs/permissions/).
+
+**Scope/limitation:** this guards OpenCode's structured file-read tool, which is the common path for accidental exposure. It does **not** restrict shell commands, so an explicit `cat secrets.yaml` in the terminal can still read the file. Treat it as a strong guardrail against inadvertent leaks, not a hard sandbox.
 
 ### OpenCode Runtime
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| **OpenCode update policy** | `latest` | Controls how OpenCode itself is updated. `latest` installs and updates OpenCode in persistent add-on data so it can follow upstream releases independently of add-on releases. `bundled` uses only the OpenCode version included in the add-on image and disables OpenCode self-update. See [OpenCode Updates](#opencode-updates). |
+| **OpenCode update policy** | `bundled` | Controls how OpenCode itself is updated. `bundled` (default) uses the OpenCode version shipped in the add-on image — the lowest-memory option. `latest` follows upstream OpenCode releases, refreshed in the background so it never delays start-up and skipped automatically on low-memory systems. See [OpenCode Updates](#opencode-updates). |
 | **CPU mode** | `auto` | Controls which OpenCode binary is used. `auto` detects your CPU capabilities automatically (recommended). `baseline` forces the baseline binary for older CPUs without AVX2 support. `regular` forces the standard binary. |
 
 ### Zigbee2MQTT and Serial Devices
@@ -145,13 +170,13 @@ Notes:
 
 OpenCode snapshots are disabled by default in this add-on to reduce memory and disk pressure on Home Assistant systems. File watching also ignores noisy internal paths such as `.storage/`, `.cloud/`, caches, logs, and the Home Assistant database. You can override these defaults with **Custom OpenCode configuration** if you need OpenCode's built-in snapshot/undo behavior.
 
+On low-memory hosts — for example a 4 GB Home Assistant Green running several other add-ons — keep **OpenCode update policy** on `bundled` (the default) so the add-on does no memory-heavy start-up install, and expect the agent itself to be memory-hungry during large tasks. 8 GB or more is recommended for comfortable use alongside other memory-heavy add-ons such as Matter Server, Music Assistant, and Whisper/Piper.
+
 ### OpenCode Updates
 
-By default, **OpenCode update policy** is set to `latest`. On startup, the add-on installs or updates `opencode-ai@latest` into `/data/.npm-global` and puts that persistent install first in `PATH`. OpenCode's own patch-level self-update also uses this persistent npm prefix, so upstream OpenCode updates can survive add-on restarts without requiring a new add-on release.
+By default, **OpenCode update policy** is set to `bundled`: the add-on uses the OpenCode version shipped in its image and does no start-up install. This is the lowest-memory option and is recommended for systems with 4 GB RAM or limited free memory.
 
-The add-on image still includes a bundled OpenCode copy as a fallback. If the startup update fails, the add-on logs a warning and continues with the existing persistent install or the bundled version.
-
-Set **OpenCode update policy** to `bundled` to use only the OpenCode version included in the add-on image. This also disables OpenCode self-update and ignores any persistent OpenCode install under `/data/.npm-global`.
+Set **OpenCode update policy** to `latest` to follow upstream OpenCode releases independently of add-on releases. The add-on starts immediately on the bundled (or an existing healthy persistent) binary, then refreshes `opencode-ai@latest` into `/data/.npm-global` **in the background**; the newer version becomes active for the next OpenCode session. The background update never blocks start-up, and it is skipped automatically when available memory is below ~1.5 GB so the install cannot push a low-memory host into swap-thrash. If an update is interrupted or produces a binary that will not run, the add-on discards it and keeps using the known-good bundled copy.
 
 For x64 systems without visible AVX2 support, OpenCode selects its baseline binary. If this add-on runs in a VM on an AVX2-capable host, enable host CPU passthrough; generic QEMU/KVM CPU models can hide AVX2 and force the baseline binary unnecessarily. There is a known upstream baseline OOM issue tracked at `anomalyco/opencode#20988`.
 
@@ -1217,7 +1242,7 @@ Check if you have enough memory. If the terminal shows `Killed`, check host logs
 ha-logs host 300 | grep -i "out of memory\|oom\|opencode"
 ```
 
-OpenCode can use significant memory on larger Home Assistant installations. This add-on disables OpenCode snapshots by default and ignores noisy internal paths to reduce memory pressure, but systems with limited RAM or full swap may still need more available memory.
+OpenCode can use significant memory on larger Home Assistant installations. This add-on disables OpenCode snapshots by default and ignores noisy internal paths to reduce memory pressure, but systems with limited RAM or full swap may still need more available memory. On 4 GB systems, make sure **OpenCode update policy** is set to `bundled` (the default) so the add-on does not run a memory-heavy update at start-up.
 
 ### Can't connect to AI provider
 
