@@ -1,0 +1,72 @@
+#!/command/with-contenv bashio
+# ==============================================================================
+# OpenCode - Startup Script (oneshot)
+# ------------------------------------------------------------------------------
+# Runs an optional user-provided shell script on every start, before the main
+# OpenCode services. Intended for installing extra third-party npm packages
+# (e.g. the skillshare CLI, https://github.com/runkids/skillshare) or running
+# git commands to fetch skills/config into the persistent /data volume.
+#
+# The whole feature is opt-in: it does nothing unless `startup_script` is set.
+# Anything installed globally with npm (`npm install -g ...`) persists across
+# restarts and updates because NPM_CONFIG_PREFIX points at /data/.npm-global.
+# ==============================================================================
+
+STARTUP_SCRIPT=$(bashio::config 'startup_script' 2>/dev/null || echo "")
+
+# bashio returns the literal string "null" for empty optional values.
+[ "${STARTUP_SCRIPT}" = "null" ] && STARTUP_SCRIPT=""
+
+if [ -z "${STARTUP_SCRIPT}" ]; then
+    # Feature disabled - nothing to do.
+    exit 0
+fi
+
+bashio::log.info "Startup script: enabled"
+
+# Match the runtime environment prepared by init-opencode so anything the
+# script installs (npm globals, git checkouts) lands where OpenCode reads it
+# from, and so a runtime-updated toolchain is on PATH. npm globals persist
+# because NPM_CONFIG_PREFIX lives under the /data volume.
+export HOME="/data"
+export XDG_DATA_HOME="/data/.local/share"
+export XDG_CONFIG_HOME="/data/.config"
+export NPM_CONFIG_PREFIX="/data/.npm-global"
+export PATH="${NPM_CONFIG_PREFIX}/bin:/usr/local/bin:/usr/bin:/bin:${PATH}"
+
+mkdir -p "${NPM_CONFIG_PREFIX}/bin"
+mkdir -p "${XDG_CONFIG_HOME}/opencode"
+
+# Make the user's configured environment variables (and any discovered by
+# init-opencode) available to the startup script, so tokens/credentials set via
+# the Environment variables option can be used by git/npm.
+# shellcheck source=/dev/null
+[ -f /data/.env_vars ] && . /data/.env_vars
+# shellcheck source=/dev/null
+[ -f /data/.env_vars_discovered ] && . /data/.env_vars_discovered
+
+# Write the script to a private file rather than passing it on the command line,
+# so its contents never appear in the process argv (visible via ps / /proc).
+SCRIPT_FILE="/data/.startup-script.sh"
+{
+    printf '%s\n' '#!/usr/bin/env bash'
+    printf '%s\n' 'set -o pipefail'
+    printf '%s\n' "${STARTUP_SCRIPT}"
+} > "${SCRIPT_FILE}"
+chmod 700 "${SCRIPT_FILE}"
+
+cleanup() {
+    rm -f "${SCRIPT_FILE}"
+}
+trap cleanup EXIT
+
+# Run the script. A non-zero exit is logged as a warning but never blocks the
+# add-on from starting - the startup script is a convenience, not a hard
+# dependency of OpenCode.
+if bash "${SCRIPT_FILE}"; then
+    bashio::log.info "Startup script: complete"
+else
+    bashio::log.warning "Startup script: exited non-zero; continuing add-on startup"
+fi
+
+exit 0

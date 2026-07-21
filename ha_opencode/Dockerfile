@@ -119,7 +119,7 @@ RUN node /opt/openchamber/patch-ingress.js
 RUN chmod +x /usr/local/bin/* \
     && chmod +x /opt/openchamber/patch-ingress.js \
     && chmod +x /etc/s6-overlay/s6-rc.d/init-opencode/run \
-    && chmod +x /etc/s6-overlay/s6-rc.d/init-skills-sync/run \
+    && chmod +x /etc/s6-overlay/s6-rc.d/init-startup-script/run \
     && chmod +x /etc/s6-overlay/s6-rc.d/ha-opencode/run \
     && chmod +x /etc/s6-overlay/s6-rc.d/ha-openchamber/run \
     && chmod +x /etc/s6-overlay/s6-rc.d/ha-opencode-server/run \

@@ -68,17 +68,9 @@ configuration:
     name: "Enable OpenCode LAN server"
     description: "Start an OpenCode server on internal port 4096. To access it from another computer, also map 4096/tcp in the Network settings. Only use this on trusted networks and never expose it to the internet."
 
-  skills_repo:
-    name: "Skills repository URL"
-    description: "Optional. Git repository (https:// or ssh) of OpenCode skills managed with the skillshare CLI. When set, the add-on clones it on startup and syncs its 'skills/' folder into OpenCode's global skills directory, updating on every restart. Leave empty to disable."
-
-  skills_repo_branch:
-    name: "Skills repository branch"
-    description: "Optional branch to track for the skills repository. Leave empty to use the repository's default branch."
-
-  skills_repo_token:
-    name: "Skills repository token"
-    description: "Optional read-only access token for a private skills repository (only used with https:// URLs). Use a fine-grained token limited to 'Contents: read' on that single repository. It is never printed to logs and is not persisted in the checkout's git config."
+  startup_script:
+    name: "Startup script"
+    description: "Optional shell script run on every start, before the main OpenCode services. Use it to install extra third-party npm packages (e.g. the skillshare CLI) or run git commands to fetch skills/config. Anything installed with 'npm install -g' persists across restarts. Configured environment variables are available to the script. Leave empty to disable."
 
   addon_access_enabled:
     name: "Enable add-on folder guidance"
