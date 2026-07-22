@@ -9,7 +9,8 @@ zigporter() {
                 echo "" >&2
                 echo "To configure:" >&2
                 echo "  1. Go to Settings -> Add-ons -> OpenCode -> Configuration" >&2
-                echo "  2. Set the 'z2m_url' field to your Z2M URL, for example http://homeassistant.local:8099" >&2
+                echo "  2. Set 'Zigbee2MQTT URL' to the address you open the Z2M UI on," >&2
+                echo "     including the scheme, for example http://192.168.1.20:8080" >&2
                 echo "  3. Restart the OpenCode add-on" >&2
                 echo "" >&2
                 echo "Commands that work without Z2M: rename-entity, rename-device," >&2

@@ -27,18 +27,18 @@ at `/usr/share/doc/ha-opencode/NOTICE` and in this repository's
 - **Touch scrolling**: One-finger vertical drag gestures inside the terminal now scroll full-screen apps such as OpenCode on phones and tablets.
 - **OpenCode update policy**: Use only the image-bundled OpenCode (`bundled`, default, lowest memory use) or keep OpenCode updated to the newest release in the background (`latest`, skipped automatically on low-memory systems).
 - **Sensitive file protection**: New **Restrict access to sensitive files** option (default on) denies the AI read access to `secrets.yaml`, `.storage/`, `.cloud/`, `ssl/`, and `*.key`/`*.pem` files so their contents can't reach the model. Set it to `false` to restore fully unrestricted file access. See [Sensitive File Protection](#sensitive-file-protection).
-- **Focus-friendly response mode**: Optional action-first, concise, progress-aware response guidance for users who find long or unstructured responses difficult to act on. Disabled by default and available in both terminal and OpenChamber modes.
+- **Focus-friendly responses**: Optional action-first, concise, progress-aware response guidance for users who find long or unstructured responses difficult to act on. Disabled by default and available in both terminal and OpenChamber modes.
 - **Browser provider sign-in in OpenChamber**: Providers whose browser OAuth method redirects to a loopback address (for example **ChatGPT Pro/Plus (browser)**) can now be connected from the OpenChamber UI. See [Connecting a provider with browser sign-in](#connecting-a-provider-with-browser-sign-in).
 
 ## Focus-Friendly Response Mode (Beta)
 
-Enable **Focus-friendly response mode (beta)** in the add-on **Configuration** tab and restart the add-on. The mode shapes OpenCode responses to lead with the next action or result, number multi-step work, show progress, keep ordinary lists short, and end with one concrete next step.
+Turn on **Focus-friendly responses (beta)** in the add-on **Configuration** tab and restart the add-on. The mode shapes OpenCode responses to lead with the next action or result, number multi-step work, show progress, keep ordinary lists short, and end with one concrete next step.
 
 This is an output-formatting preference, not a medical feature. It does not diagnose ADHD, create a health profile, change model access, grant permissions, or bypass confirmations. Home Assistant safety requirements remain in effect: proposed changes, validation results, backups, destructive-action warnings, and explicit approval are still required. Ask for an explanation or walkthrough when you want more detail.
 
 ## Add-on Folder Access
 
-OpenCode mounts `/addons` and `/addon_configs` for Home Assistant add-on development access. Enable **Add-on Folder Guidance** in the add-on configuration and restart to show these paths in the terminal. This option updates guidance, but the mounts are static add-on metadata and are not a hard filesystem permission boundary.
+OpenCode mounts `/addons` and `/addon_configs` for Home Assistant add-on development access. Turn on **Add-on folder guidance** in the add-on configuration and restart to show these paths in the terminal. This option updates guidance, but the mounts are static add-on metadata and are not a hard filesystem permission boundary.
 
 Treat `/addon_configs` as sensitive because it may contain configuration data for other add-ons.
 
@@ -68,7 +68,7 @@ For x64 VM installs, make sure the guest can see AVX2 when the host supports it.
 
 Home Assistant is adding a native `llm` integration and native MCP endpoints for registered LLM APIs. PR [home-assistant/developers.home-assistant#3236](https://github.com/home-assistant/developers.home-assistant/pull/3236) documents the contract: every registered LLM API is exposed at `/api/mcp/<API ID>` once Home Assistant's MCP Server integration is set up. The built-in Assist API uses the API ID `assist`.
 
-When **Enable native Home Assistant MCP bridge** is on, the add-on adds a second OpenCode MCP server named `homeassistant_native` that forwards requests to the configured Home Assistant Core native endpoint through the Supervisor proxy. **Native Home Assistant MCP API ID** defaults to `assist`, which targets `/api/mcp/assist`. Set it to a custom API ID to test `/api/mcp/<your API ID>` for custom APIs registered inside Home Assistant. Leave it empty to target Home Assistant's configured `/api/mcp` endpoint instead.
+When **Native Home Assistant MCP bridge (beta)** is on, the add-on adds a second OpenCode MCP server named `homeassistant_native` that forwards requests to the configured Home Assistant Core native endpoint through the Supervisor proxy. **Native MCP API ID** defaults to `assist`, which targets `/api/mcp/assist`. Set it to a custom API ID to test `/api/mcp/<your API ID>` for custom APIs registered inside Home Assistant. Leave it empty to target Home Assistant's configured `/api/mcp` endpoint instead.
 
 Access model from Home Assistant Core: `/api/mcp` serves the API selected in the MCP Server integration and does not require admin access. `/api/mcp/<API ID>` selects a specific registered LLM API by ID and requires admin access except for the built-in Assist API.
 
@@ -100,7 +100,7 @@ Security and networking notes:
 - The OpenChamber process binds to `127.0.0.1` inside the container.
 - A small first-party ingress proxy binds to internal port `8099`, accepts Home Assistant Ingress traffic, and forwards to OpenChamber locally.
 - Home Assistant Ingress provides the browser authentication layer, so no separate OpenChamber UI password is configured for this mode.
-- LAN access remains the separate opt-in **OpenCode LAN Server** feature on port `4096`.
+- LAN access remains the separate opt-in **OpenCode LAN server** feature on port `4096`.
 
 Known beta risk: OpenChamber is a root-hosted web app, so this beta includes a pinned bundle patch for Home Assistant's `/api/hassio_ingress/...` path. If the page loads but actions fail, switch **Interface mode** back to `terminal`, restart the add-on, and include logs when reporting the issue.
 
@@ -114,7 +114,7 @@ In **Settings → Providers**, copy the whole `http://localhost:...` URL from yo
 
 ## Zigbee2MQTT URL
 
-If you configure `z2m_url` for zigporter commands, use a full URL such as `http://homeassistant.local:8099`. Host/IP-only values are accepted and treated as `http://`.
+The add-on discovers a running Zigbee2MQTT add-on automatically, so **Zigbee2MQTT URL** is only needed as a manual override. Set it to the same address and port you open the Zigbee2MQTT UI on, including the scheme — for example `http://192.168.1.20:8080`. Host/IP-only values are accepted and treated as `http://`.
 
 ## LAN Server Mode (Beta)
 
@@ -122,7 +122,7 @@ LAN server mode lets you attach to the Home Assistant-hosted OpenCode session fr
 
 To enable LAN access:
 
-1. In the add-on **Configuration** tab, set **Enable OpenCode LAN Server** to `true`.
+1. In the add-on **Configuration** tab, turn on **OpenCode LAN server**.
 2. In the add-on **Network** settings, map `4096/tcp` to the host port you want to use.
 3. Save and restart the add-on.
 
@@ -161,7 +161,7 @@ PPQ private mode routes OpenCode requests through a local encryption proxy befor
 To enable PPQ private models:
 
 1. Get a PPQ API key from PPQ.
-2. In the add-on **Configuration** tab, set **Enable PPQ Private TEE Models** to `true`.
+2. In the add-on **Configuration** tab, turn on **PPQ private TEE models (beta)**.
 3. Paste the key into **PPQ API Key**. Alternatively, set `PPQ_API_KEY` through **Environment Variables** if you manage credentials that way.
 4. Save and restart the add-on.
 5. In OpenCode, select the `PPQ Private (TEE)` provider and one of the `private/...` models.
