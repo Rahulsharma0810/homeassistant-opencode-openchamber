@@ -27,6 +27,17 @@ All notable changes to this project will be documented in this file.
 
 
 
+
+## 1.18.11-1.17.2
+
+### 🤖 OpenCode (v1.18.11)
+- Automated downstream build tracking the latest `opencode-ai` release.
+
+---
+
+### 🔮 OpenChamber (v1.17.2)
+- Automated downstream build tracking the latest `@openchamber/web` release.
+
 ## 1.18.10-1.17.1.1
 
 ### 🤖 OpenCode (v1.18.10)
