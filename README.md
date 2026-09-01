@@ -115,7 +115,7 @@ This add-on is released into the public domain under the [Unlicense](UNLICENSE).
 [openchamber-npm]: https://www.npmjs.com/package/@openchamber/web
 
 <!-- Badges -->
-[version-shield]: https://img.shields.io/badge/addon-v1.18.25--1.22.0-blue.svg
+[version-shield]: https://img.shields.io/badge/addon-v1.18.25--1.22.0.1-blue.svg
 [opencode-shield]: https://img.shields.io/badge/opencode--ai-v1.18.25-blue.svg
 [openchamber-shield]: https://img.shields.io/badge/@openchamber/web-v1.22.0-blue.svg
 [build-shield]: https://img.shields.io/github/actions/workflow/status/Rahulsharma0810/homeassistant-opencode-openchamber/build.yaml?style=flat-square&label=build
