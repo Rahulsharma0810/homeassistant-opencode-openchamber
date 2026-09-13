@@ -110,6 +110,32 @@ What stays in `AGENTS.md` — and therefore loads in every session — is the pa
 
 The skills are deployed to `/data/.config/opencode/skills/`, where OpenCode discovers them. **You can edit them.** The add-on refreshes a skill at start-up only when your copy is byte-for-byte what it last wrote; once you change one, it is yours, the update is skipped, and the add-on log says so. Delete your edited copy if you later want the shipped version back.
 
+## Editing automations: saved versus active
+
+The bundled `home-assistant-configuration` skill guides the agent through locating
+the automation source (including custom includes/packages), preserving existing
+automations and IDs, prevalidating the draft, and saving with `write_config_safe`.
+You can ask: “Use the configuration skill to edit this automation, then explain
+the reload and verification steps.”
+
+Saving YAML does not apply it to the running instance. The agent should request
+approval for both the write and `automation.reload`, then verify loading with
+read-only tools. A domain reload avoids a Core restart but stops currently
+running automation actions. The final response should distinguish **saved**,
+**reloaded**, and **load verified**; testing the automation's actions is separate
+and requires approval.
+
+The `configuration` MCP profile supports safe writes but omits `call_service`, so
+the agent must leave the change **pending reload**. Reload Automations in
+Home Assistant's **Developer Tools → YAML**, or choose the `full` MCP profile and
+restart the add-on to let the agent perform an approved reload. If a reload fails,
+the agent should report that and inspect relevant errors, rather than report the
+edit as complete or switch to shell/API editing.
+
+Updated bundled guidance takes effect after an add-on restart and a new OpenCode
+session. User-edited skill copies are preserved by updates; review those copies
+if an older customized procedure is still being loaded.
+
 ## Read-Only Session
 
 > **Requires `interface_mode: terminal`.** `ha-readonly` is a terminal command, and in `openchamber` mode the add-on does not start a terminal — so in that mode it is not available. There is no OpenChamber equivalent: OpenChamber drives one managed OpenCode server with one configuration, and a read-only *option* on that server would change your normal session rather than sit beside it, which is exactly what this feature avoids.

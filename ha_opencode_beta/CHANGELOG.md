@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- **Clearer automation editing workflow (#115)** — aligned agent guidance around safe YAML writes, approved domain reloads, and read-only load verification. Successful safe writes now give file-specific apply guidance and distinguish saved changes from active configuration; reduced tool profiles explicitly leave reload pending.
+
 ## 3.0.0b13
 
 - Updated the pinned OpenCode V2 CLI and plugin to beta-19242; full runtime and restart validation remains pending.
