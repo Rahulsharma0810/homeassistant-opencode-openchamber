@@ -3,6 +3,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **Clearer automation editing workflow (#115)** — aligned agent guidance around safe YAML writes, approved domain reloads, and read-only load verification. Successful safe writes now give file-specific apply guidance and distinguish saved changes from active configuration; reduced tool profiles explicitly leave reload pending.
+
 ## 2.5.4
 
 - Pinned OpenCode to 1.18.29, including fixes for GPT-6 model discovery with OpenAI subscription authentication.
