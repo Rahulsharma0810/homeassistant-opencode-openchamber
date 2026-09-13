@@ -1700,6 +1700,26 @@ ha-logs host 300 | grep -i "out of memory\|oom\|opencode"
 
 OpenCode can use significant memory on larger Home Assistant installations. This add-on disables snapshots, ignores noisy internal paths, and performs no runtime installation at start-up, but systems with limited RAM or full swap may still need more available memory.
 
+### Quit OpenCode without stopping the app
+
+In **Terminal** mode, the small **Quit OpenCode** button at the top-right uses
+the same build-time page injection as the clipboard control. After confirmation,
+it requests graceful exit of the managed standalone OpenCode instance and returns
+you to the existing shell. Type `opencode` to start it again; saved conversations
+remain available. Any unsent input or in-progress work may be interrupted.
+
+The terminal is shared: quitting affects all browsers attached to that tmux
+session. Closing a browser tab still only disconnects it. The optional LAN server
+and other independent app services remain running, so the amount of memory freed
+depends on your setup.
+
+The button supports the default standalone `opencode` launch in the managed
+terminal, including typing that command again at the fallback shell. It does not
+control `opencode serve`, `attach`, other command-line modes, or OpenChamber.
+Customized keybindings do not affect it. If startup is incomplete, the instance
+changed, or shutdown times out, it reports that rather than force-killing the
+process. Use OpenCode's normal exit action for other launch modes.
+
 ### Editing automations: saved versus active
 
 The bundled `home-assistant-configuration` skill guides the agent through locating

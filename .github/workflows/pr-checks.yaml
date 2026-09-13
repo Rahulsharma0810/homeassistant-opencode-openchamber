@@ -44,6 +44,11 @@ jobs:
       - name: Stable add-on contract tests
         run: node --test "ha_opencode/test/*.test.js"
 
+      - name: Stable terminal quit process-control tests
+        env:
+          PYTHONDONTWRITEBYTECODE: "1"
+        run: python3 ha_opencode/test/terminal-control.test.py
+
       - name: HA-facing MCP discovery and service lifecycle contracts
         run: node --test scripts/ha-facing-discovery.test.mjs
 
