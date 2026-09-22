@@ -2,7 +2,9 @@
 
 ## [Unreleased]
 
-- **Reliable Home Assistant MCP plugin reactivation (#112)** — retain the one-time broker credential in the non-dumpable V2 server's native bootstrap library instead of a consumable FD 3 pipe. Repeated setup, failed-registration recovery, and local module reloads acquire a fresh in-process copy without reading or closing unrelated runtime descriptors. The broker's PID/start-time checks and one-shot delivery remain intact; temporary copy buffers are wiped and the native getter rejects forked or unseeded processes.
+## 3.0.0b14
+
+- **Reliable Home Assistant MCP plugin reactivation (#112)** — fixed intermittent `EAGAIN: resource temporarily unavailable, read` errors that could leave Home Assistant tools unavailable after plugin reloads. The V2 server now retains its MCP credential safely across reloads instead of rereading a one-use file descriptor.
 
 - **Clearer automation editing workflow (#115)** — aligned agent guidance around safe YAML writes, approved domain reloads, and read-only load verification. Successful safe writes now give file-specific apply guidance and distinguish saved changes from active configuration; reduced tool profiles explicitly leave reload pending.
 
