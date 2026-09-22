@@ -53,15 +53,15 @@ jobs:
           V1_META=$(curl -fsSL https://registry.npmjs.org/opencode-ai)
           V1_LATEST=$(echo "$V1_META" | jq -r '."dist-tags".latest')
           V1_PUBLISHED=$(echo "$V1_META" | jq -r --arg v "$V1_LATEST" '.time[$v]')
-          V2_META=$(curl -fsSL https://registry.npmjs.org/@opencode-ai%2Fcli)
-          V2_LATEST=$(echo "$V2_META" | jq -r '."dist-tags".beta')
+          V2_META=$(curl -fsSL https://registry.npmjs.org/@opencode%2Fcli)
+          V2_LATEST=$(echo "$V2_META" | jq -r '."dist-tags".latest')
           V2_PUBLISHED=$(echo "$V2_META" | jq -r --arg v "$V2_LATEST" '.time[$v]')
           if [ -z "${V1_LATEST}" ] || [ "${V1_LATEST}" = "null" ]; then
             echo "::error::Could not read the opencode-ai latest dist-tag from the npm registry"
             exit 1
           fi
           if [ -z "${V2_LATEST}" ] || [ "${V2_LATEST}" = "null" ]; then
-            echo "::error::Could not read the @opencode-ai/cli beta dist-tag from the npm registry"
+            echo "::error::Could not read the @opencode/cli latest dist-tag from the npm registry"
             exit 1
           fi
           {
@@ -71,7 +71,7 @@ jobs:
             echo "v2_published=${V2_PUBLISHED}"
           } >> "$GITHUB_OUTPUT"
           echo "Latest V1: ${V1_LATEST} (${V1_PUBLISHED})"
-          echo "Latest V2 beta: ${V2_LATEST} (${V2_PUBLISHED})"
+          echo "Latest official V2: ${V2_LATEST} (${V2_PUBLISHED})"
 
       - name: Summary
         env:
@@ -92,7 +92,7 @@ jobs:
             echo "| Certified stable V1 | \`${STABLE_BUILD}\` |"
             echo "| Latest V1 | [\`${V1_LATEST}\`](https://www.npmjs.com/package/opencode-ai/v/${V1_LATEST}) (${V1_PUBLISHED}) |"
             echo "| Certified beta V2 | \`${BETA_BUILD}\` |"
-            echo "| Latest V2 beta | [\`${V2_LATEST}\`](https://www.npmjs.com/package/@opencode-ai/cli/v/${V2_LATEST}) (${V2_PUBLISHED}) |"
+            echo "| Latest official V2 | [\`${V2_LATEST}\`](https://www.npmjs.com/package/@opencode/cli/v/${V2_LATEST}) (${V2_PUBLISHED}) |"
             echo
           } >> "$GITHUB_STEP_SUMMARY"
 

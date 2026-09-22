@@ -41,7 +41,7 @@ ARG OPENCODE_VERSION=1.18.25
 # OpenCode V2 and its plugin API are one matched, exact beta build. V1 remains
 # installed as the rollback, LAN, and OpenChamber runtime; no V2 process may use
 # the V1 data roots.
-ARG OPENCODE_V2_VERSION=0.0.0-beta-19242
+ARG OPENCODE_V2_VERSION=2.0.13
 ARG OPENCHAMBER_VERSION=1.21.0
 ARG PPQ_PROXY_VERSION=0.1.0
 ARG TSX_VERSION=4.20.6
@@ -210,19 +210,19 @@ RUN set -e; \
     wait "${V2_INSTALL_PID}"; \
     wait "${MCP_INSTALL_PID}"; \
     wait "${LSP_INSTALL_PID}" \
-    && V2_INSTALLED=$(node -e "console.log(require('/opt/opencode-v2-homeassistant/node_modules/@opencode-ai/cli/package.json').version)") \
-    && V2_PLUGIN=$(node -e "console.log(require('/opt/opencode-v2-homeassistant/node_modules/@opencode-ai/plugin/package.json').version)") \
+    && V2_INSTALLED=$(node -e "console.log(require('/opt/opencode-v2-homeassistant/node_modules/@opencode/cli/package.json').version)") \
+    && V2_PLUGIN=$(node -e "console.log(require('/opt/opencode-v2-homeassistant/node_modules/@opencode/plugin/package.json').version)") \
     && if [ "${V2_INSTALLED}" != "${OPENCODE_V2_VERSION}" ] || [ "${V2_PLUGIN}" != "${OPENCODE_V2_VERSION}" ]; then \
         echo "OPENCODE_V2_VERSION is ${OPENCODE_V2_VERSION} but CLI=${V2_INSTALLED} plugin=${V2_PLUGIN}" >&2; \
         exit 1; \
     fi \
     && if [ "${BUILD_ARCH}" = "aarch64" ]; then \
-        test -x /opt/opencode-v2-homeassistant/node_modules/@opencode-ai/cli-linux-arm64/bin/opencode2; \
+        test -x /opt/opencode-v2-homeassistant/node_modules/@opencode/cli-linux-arm64/bin/opencode; \
     else \
-        test -x /opt/opencode-v2-homeassistant/node_modules/@opencode-ai/cli-linux-x64/bin/opencode2 \
-        && test -x /opt/opencode-v2-homeassistant/node_modules/@opencode-ai/cli-linux-x64-baseline/bin/opencode2; \
+        test -x /opt/opencode-v2-homeassistant/node_modules/@opencode/cli-linux-x64/bin/opencode \
+        && test -x /opt/opencode-v2-homeassistant/node_modules/@opencode/cli-linux-x64-baseline/bin/opencode; \
     fi \
-    && ln -sf /opt/opencode-v2-homeassistant/node_modules/@opencode-ai/cli/bin/opencode2.exe /usr/local/bin/opencode2 \
+    && ln -sf /opt/opencode-v2-homeassistant/node_modules/@opencode/cli/bin/opencode.exe /usr/local/bin/opencode2 \
     && opencode2 --version \
     && printf '%s\n' "${OPENCODE_V2_VERSION}" > /usr/local/share/opencode-v2-certified-version \
     && npm cache clean --force \

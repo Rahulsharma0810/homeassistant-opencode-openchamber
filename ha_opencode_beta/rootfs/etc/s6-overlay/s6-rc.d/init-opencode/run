@@ -605,8 +605,8 @@ setup_opencode_runtime() {
 setup_opencode_runtime
 
 # Build V2 state only from private copies. A failed or unsupported conversion is
-# non-fatal during the transition: V1 keeps running against its untouched roots,
-# and the non-secret journal records why V2 activation was deferred.
+# non-fatal: the terminal remains available for diagnostics and explicit V1
+# rollback, and the existing state stays selected if an upgrade fails.
 V2_STATE_READY=false
 if [ "${TERMINAL_RUNTIME}" != "v2" ]; then
     bashio::log.info "OpenCode V2 migration is skipped during explicit V1 rollback"
@@ -627,10 +627,10 @@ elif [ "${V2_ROOTS_READY}" = "true" ] && [ "${V2_RUNTIME_BINARY_READY}" = "true"
             bashio::log.warning "This V2 generation contains provider credentials copied by an earlier beta. Reconnect any provider that returns HTTP 401 from the V2 terminal."
         fi
     else
-        bashio::log.warning "OpenCode V2 state conversion was deferred; continuing with the untouched V1 runtime and state"
+        bashio::log.warning "OpenCode V2 state preparation failed; V2 remains inactive and existing state is preserved. Select OpenCode runtime V1 explicitly for rollback."
     fi
 else
-    bashio::log.warning "OpenCode V2 state conversion skipped because its roots or CPU-selected runtime are unavailable; continuing with the untouched V1 runtime and state"
+    bashio::log.warning "OpenCode V2 state preparation skipped because its roots or CPU-selected runtime are unavailable; V2 remains inactive. Select OpenCode runtime V1 explicitly for rollback."
 fi
 
 # Stage one authenticated V2 server behind a private loopback endpoint. Its

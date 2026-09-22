@@ -81,11 +81,11 @@ jobs:
           echo "Using OpenCode ${OPENCODE_VERSION} for beta build"
 
           OPENCODE_V2_VERSION=$(sed -n 's/^[[:space:]]*OPENCODE_V2_VERSION:[[:space:]]*"\([^"]*\)".*/\1/p' ha_opencode_beta/build.yaml)
-          if ! printf '%s' "${OPENCODE_V2_VERSION}" | grep -Eq '^0\.0\.0-beta-[0-9]+$'; then
-            echo "::error::OPENCODE_V2_VERSION must be an exact beta version, got '${OPENCODE_V2_VERSION}'"
+          if ! printf '%s' "${OPENCODE_V2_VERSION}" | grep -Eq '^2\.[0-9]+\.[0-9]+$'; then
+            echo "::error::OPENCODE_V2_VERSION must be an exact official V2 version, got '${OPENCODE_V2_VERSION}'"
             exit 1
           fi
-          PACKAGE_V2_VERSION=$(node -p "require('./ha_opencode_beta/rootfs/opt/opencode-v2-homeassistant/package.json').dependencies['@opencode-ai/cli']")
+          PACKAGE_V2_VERSION=$(node -p "require('./ha_opencode_beta/rootfs/opt/opencode-v2-homeassistant/package.json').dependencies['@opencode/cli']")
           if [ "${PACKAGE_V2_VERSION}" != "${OPENCODE_V2_VERSION}" ]; then
             echo "::error::build.yaml V2 pin ${OPENCODE_V2_VERSION} does not match package ${PACKAGE_V2_VERSION}"
             exit 1

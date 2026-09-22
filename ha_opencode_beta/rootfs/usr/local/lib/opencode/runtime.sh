@@ -48,7 +48,7 @@ opencode_v2_certified_version() {
             return 0
         fi
     fi
-    opencode_package_version "/opt/opencode-v2-homeassistant/node_modules/@opencode-ai/cli"
+    opencode_package_version "/opt/opencode-v2-homeassistant/node_modules/@opencode/cli"
 }
 
 # Print the version recorded in a package's package.json, or a sentinel
@@ -114,7 +114,7 @@ opencode_select_v2_package_binary() {
     local package_root="$1"
     local mode="$2"
     local machine package_name source_binary
-    local target_binary="${package_root}/node_modules/@opencode-ai/cli/bin/opencode2.exe"
+    local target_binary="${package_root}/node_modules/@opencode/cli/bin/opencode.exe"
 
     machine=$(uname -m)
     case "${machine}" in
@@ -134,7 +134,7 @@ opencode_select_v2_package_binary() {
             return 0
             ;;
     esac
-    source_binary="${package_root}/node_modules/@opencode-ai/${package_name}/bin/opencode2"
+    source_binary="${package_root}/node_modules/@opencode/${package_name}/bin/opencode"
 
     if [ ! -x "${source_binary}" ]; then
         opencode_log "OpenCode V2 ${mode} binary not found at ${source_binary}; V2 stays inactive"

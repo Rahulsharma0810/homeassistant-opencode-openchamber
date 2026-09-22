@@ -20,8 +20,8 @@ const read = (...parts) => fs.readFileSync(path.join(...parts), "utf8");
 it("checks authentication on the V2 API health route, not the web UI fallback", () => {
   const fixture = read(ADDON_DIR, "test", "v2-boundary-fixture.sh");
   const selfTest = read(ROOTFS, "usr", "local", "bin", "opencode-v2-self-test");
-  assert.match(fixture, /wait_for_status 401 "http:\/\/127\.0\.0\.1:\$\{SERVER_PORT\}\/api\/health"/);
-  assert.match(selfTest, /client\.request\("\/api\/health", expected=401, authenticated=False/);
+  assert.match(fixture, /wait_for_status 401 "http:\/\/127\.0\.0\.1:\$\{SERVER_PORT\}\/api\/info"/);
+  assert.match(selfTest, /client\.request\("\/api\/info", expected=401, authenticated=False/);
   assert.doesNotMatch(fixture + selfTest, /\/global\/health/);
 });
 
@@ -120,22 +120,22 @@ describe(`${CHANNEL} runtime pin`, () => {
     assert.match(dockerfilePin, /^1\./);
   });
 
-  it("pins one matching exact V2 CLI and plugin beta", () => {
-    assert.match(dockerfileV2Pin, /^0\.0\.0-beta-\d+$/);
+  it("pins one matching exact official V2 CLI and plugin release", () => {
+    assert.match(dockerfileV2Pin, /^2\.\d+\.\d+$/);
     assert.equal(buildYamlV2Pin, dockerfileV2Pin);
-    assert.equal(v2Package.dependencies["@opencode-ai/cli"], dockerfileV2Pin);
-    assert.equal(v2Package.dependencies["@opencode-ai/plugin"], dockerfileV2Pin);
+    assert.equal(v2Package.dependencies["@opencode/cli"], dockerfileV2Pin);
+    assert.equal(v2Package.dependencies["@opencode/plugin"], dockerfileV2Pin);
   });
 
   it("installs and verifies the V2 runtime from its committed lock", () => {
     assert.match(dockerfile, /opencode-v2-homeassistant && npm ci --omit=dev/);
-    assert.match(dockerfile, /@opencode-ai\/cli\/package\.json'\)\.version/);
-    assert.match(dockerfile, /@opencode-ai\/plugin\/package\.json'\)\.version/);
+    assert.match(dockerfile, /@opencode\/cli\/package\.json'\)\.version/);
+    assert.match(dockerfile, /@opencode\/plugin\/package\.json'\)\.version/);
     assert.match(dockerfile, /opencode2 --version/);
     assert.match(dockerfile, /\/usr\/local\/share\/opencode-v2-certified-version/);
-    assert.match(dockerfile, /cli-linux-x64-baseline\/bin\/opencode2/);
-    assert.match(dockerfile, /cli-linux-x64\/bin\/opencode2/);
-    assert.match(dockerfile, /cli-linux-arm64\/bin\/opencode2/);
+    assert.match(dockerfile, /cli-linux-x64-baseline\/bin\/opencode/);
+    assert.match(dockerfile, /cli-linux-x64\/bin\/opencode/);
+    assert.match(dockerfile, /cli-linux-arm64\/bin\/opencode/);
     for (const name of ["V2_INSTALL_PID", "MCP_INSTALL_PID", "LSP_INSTALL_PID"]) {
       assert.match(dockerfile, new RegExp(`wait "\\$\\{${name}\\}"`));
     }

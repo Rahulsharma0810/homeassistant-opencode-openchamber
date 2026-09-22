@@ -238,14 +238,14 @@ def wait_for(description, probe):
 
 def exercise_policy(client, expected_version, mcp_enabled, native_mcp_enabled, reporter):
     def authentication_boundary():
-        client.request("/api/health", expected=401, authenticated=False, decode=False)
+        client.request("/api/info", expected=401, authenticated=False, decode=False)
         return True
 
     wait_for("V2 authentication boundary", authentication_boundary)
     reporter.ok("V2 server rejects unauthenticated requests")
 
-    health = wait_for("authenticated V2 health", lambda: client.request("/api/health"))
-    if not isinstance(health, dict) or health.get("healthy") is not True or health.get("version") != expected_version:
+    health = wait_for("authenticated V2 info", lambda: client.request("/api/info"))
+    if not isinstance(health, dict) or health.get("version") != expected_version:
         raise SelfTestError("authenticated V2 health response does not match the certified version")
     reporter.ok(f"authenticated V2 health reports {expected_version}")
 

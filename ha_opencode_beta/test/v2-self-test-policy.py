@@ -16,7 +16,7 @@ ADDON = Path(__file__).resolve().parents[1]
 with patch.dict(sys.modules, {"resource": types.ModuleType("resource")} if os.name == "nt" else {}):
     POLICY = runpy.run_path(str(ADDON / "rootfs/usr/local/bin/opencode-v2-self-test"))
 EXERCISE = POLICY["exercise_policy"]
-VERSION = "0.0.0-beta-19242"
+VERSION = "2.0.13"
 AGENT = POLICY["READ_ONLY_AGENT"]
 
 
@@ -35,12 +35,12 @@ class PolicyTest(unittest.TestCase):
             def request(client, path, **kwargs):
                 requests.append((path, kwargs))
                 if kwargs:
-                    self.assertEqual((path, kwargs), ("/api/health", {
+                    self.assertEqual((path, kwargs), ("/api/info", {
                         "expected": 401, "authenticated": False, "decode": False,
                     }))
                     return None
                 return {
-                    "/api/health": {"healthy": True, "version": VERSION},
+                    "/api/info": {"version": VERSION},
                     "/api/plugin": {"data": plugins},
                     "/api/mcp": {"data": [{"name": "homeassistant", "status": {"status": "connected"}}] if mcp else []},
                     f"/api/agent/{AGENT}": {"data": {"id": AGENT, **self.config["agents"][AGENT]}},

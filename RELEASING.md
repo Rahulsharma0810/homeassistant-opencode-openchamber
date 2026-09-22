@@ -99,7 +99,7 @@ Tagging is the trigger for everything.
 | `build-beta.yaml` | `beta-v*` | Same, from `ha_opencode_beta/`, with `ADDON_CHANNEL=beta` |
 | `release-beta.yaml` | `beta-v*` | Writes `version:` into `ha_opencode_beta/config.yaml` on main, creates a prerelease |
 | `check-hab-update.yaml` | weekly | Reports the `HAB_VERSION` pin in both Dockerfiles against the latest hab release |
-| `check-opencode-update.yaml` | weekly | Reports stable's V1 pin and beta's V2 beta pin against their separate npm streams. Read-only — it never bumps a pin |
+| `check-opencode-update.yaml` | weekly | Reports stable's V1 pin and beta's official V2 pin against their separate npm streams. Read-only — it never bumps a pin |
 | `pr-checks.yaml` | pull request, push to main | Runs the add-on contract tests, the MCP server and YAML LSP suites, and syntax checks every shipped script |
 | `beta-image-checks.yaml` | relevant pull request, push to main | Builds the beta boundary target on native amd64 and arm64 runners without publishing |
 | `stable-image-checks.yaml` | relevant pull request, push to main | Builds the stable image on native amd64 and arm64 runners without publishing |

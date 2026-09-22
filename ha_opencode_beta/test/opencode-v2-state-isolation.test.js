@@ -128,7 +128,7 @@ describe("OpenCode V2 state isolation", () => {
   it("runs the copy-on-write migration before V1 services are released", () => {
     assert.match(init, /opencode-v2-migrate\.py prepare/);
     assert.match(init, /--runtime-user opencode-v2/);
-    assert.match(init, /continuing with the untouched V1 runtime and state/);
+    assert.match(init, /V2 remains inactive and existing state is preserved/);
     assert.ok(
       init.indexOf("opencode-v2-migrate.py prepare") < init.indexOf("setsid node /usr/local/bin/discover-services.js"),
     );

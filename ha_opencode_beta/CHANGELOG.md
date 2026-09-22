@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## 3.0.0b16
+
+- Fixed `target_version_mismatch` startup failures by upgrading a private copy of existing V2 state, preserving conversations, sign-ins, and session permissions while retaining the original generation for recovery.
+- Updated the beta app to official OpenCode 2.0.13, including its renamed packages and authenticated readiness endpoint.
+- Corrected startup diagnostics to explain when V2 is inactive and V1 rollback must be selected explicitly.
+
 ## 3.0.0b15
 
 - Fixed screenshot authentication and now report login, navigation, or frontend-readiness failures instead of successful dashboard captures (#121).

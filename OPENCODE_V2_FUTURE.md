@@ -11,8 +11,8 @@ Updated on 2026-09-07:
 
 - Stable OpenCode is `opencode-ai@1.18.25` and remains the certified runtime in
   stable add-on 2.5.3.
-- V2 is an active beta published separately as `@opencode-ai/cli`. The selected
-  exact build is `0.0.0-beta-19242` and installs the
+- V2 is officially released as `@opencode/cli`. The selected
+  exact build is `2.0.13` and installs the
   `opencode2` command.
 - This pin update is limited to quick contract checks at the user's request;
   the full V2 compatibility lane is deferred. It does not establish a fix for
@@ -188,12 +188,12 @@ user data and must not be automatically deleted.
 V2 is not a version of the `opencode-ai` package. The required starting pair is:
 
 ```text
-@opencode-ai/cli     -> opencode2
-@opencode-ai/plugin  -> matching beta plugin API
+@opencode/cli     -> private opencode2 alias (retained V1 owns opencode)
+@opencode/plugin  -> matching official V2 plugin API
 ```
 
 The plugin package already pins its matching client/protocol dependencies.
-Install `@opencode-ai/client` or `@opencode-ai/server` directly only when a
+Install `@opencode/client` or `@opencode/server` directly only when a
 specific add-on component imports that package.
 
 The CLI package publishes Linux glibc binaries for x64, x64 baseline, and
@@ -463,8 +463,27 @@ substitute for host-level HAOS acceptance.
 - Interrupted boots reconcile abandoned private work on the next attempt.
 - Re-running the same target version reuses the activated generation and repairs
   a missing journal.
-- A different target version fails closed without opening or mutating the
-  selected generation.
+- Previously shipped beta-18684 and beta-19242 generations upgrade to 2.0.13
+  using a private copy of V2 data/state, never a fresh import from V1. The native
+  runtime applies schema migrations; the coordinator verifies integrity and
+  existing session, message, credential, connection, and event records before
+  switching the current pointer. Session permissions are preserved and legacy
+  rules translated to native ordered V2 rules despite upstream's permission reset.
+- The previous generation remains available for recovery after successful
+  upgrade and subsequent restarts. Unknown version transitions and downgrades
+  fail closed. A failed upgrade keeps the current pointer and original state.
+
+### 3.0.0b16 verification
+
+The 3.0.0b16 upgrade was verified in the official Home Assistant Apps
+devcontainer on amd64 with Core 2026.9.3: an existing beta-19242 generation
+retained a synthetic conversation, credential, and deny rule across upgrade
+and restarts, with its original database and marker byte-identical. The
+Supervisor/s6, authenticated V2 policy, MCP sidecar recovery, attached TUI,
+and Core Ingress acceptance checks passed with HA-facing MCP both disabled
+and enabled. Native beta-18684 upgrade and
+failure/restart regressions also passed. This is local lifecycle evidence,
+not a HAOS host-level certification; native arm64 is checked by release CI.
 
 ### Permanent in-container rollback
 

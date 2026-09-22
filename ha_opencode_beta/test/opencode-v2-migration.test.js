@@ -25,12 +25,15 @@ const V2_BIN = join(
   "opt",
   "opencode-v2-homeassistant",
   "node_modules",
-  "@opencode-ai",
+  "@opencode",
   "cli",
   "bin",
-  "opencode2.exe",
+  "opencode.exe",
 );
-const TARGET_VERSION = "0.0.0-beta-19242";
+const TARGET_VERSION = "2.0.13";
+const PREVIOUS_VERSION = "0.0.0-beta-18684";
+const PREVIOUS_BIN = join(ADDON_ROOT, "rootfs", "opt", "opencode-v2-homeassistant",
+  "node_modules", "@opencode-ai", "cli", "bin", "opencode2.exe");
 const AUTH_SECRET = "migration-test-secret-must-not-leak";
 
 function findPython() {
@@ -237,7 +240,7 @@ describe("OpenCode V2 copy-on-write migration", () => {
         0,
         0,
         null,
-        [{ permission: "*", pattern: "*", action: "deny" }],
+        [{ action: "*", resource: "*", effect: "deny" }],
         "build",
         { id: "claude", providerID: "anthropic", variant: "default" },
         1,
@@ -422,5 +425,69 @@ describe("OpenCode V2 copy-on-write migration", () => {
     assert.match(incompatible.stderr, /target_version_mismatch/);
     assert.equal((await readFile(join(root, "current"), "utf8")).trim(), current);
     assert.deepEqual(await readdir(join(root, "generations")), [current]);
+  });
+
+  it("upgrades an actual earlier beta generation, preserving V2 sign-ins and rollback state", async () => {
+    const root = join(sandbox, "upgrade-v2");
+    const source = join(sandbox, "upgrade-v1");
+    await mkdir(source);
+    await writeFile(join(source, "auth.json"), AUTH_SECRET);
+    const previousArgs = ["prepare", "--root", root, "--source-data", source,
+      "--v2-bin", PREVIOUS_BIN, "--target-version", PREVIOUS_VERSION, "--timeout", "30"];
+    const initial = runMigrator(python, previousArgs);
+    assert.equal(initial.status, 0, initial.stderr);
+    const previous = JSON.parse(initial.stdout).generation;
+    const previousRoot = join(root, "generations", previous);
+    const database = join(previousRoot, "data", "opencode", "opencode.db");
+    const seed = spawnSync(python, ["-c", [
+      "import json,sqlite3,sys",
+      "c=sqlite3.connect(sys.argv[1])",
+      "c.execute(\"INSERT OR IGNORE INTO project (id,worktree,time_created,time_updated,sandboxes) VALUES (?,?,?,?,?)\", ('global','/',1,1,'[]'))",
+      "c.execute(\"INSERT INTO credential (id,integration_id,label,value,time_created,time_updated) VALUES (?,?,?,?,?,?)\", ('v2-auth','anthropic','API key',json.dumps({'type':'key','key':sys.argv[2]}),1,1))",
+      "c.execute(\"INSERT INTO session_v2 (id,project_id,slug,directory,title,version,time_created,time_updated,permission) VALUES (?,?,?,?,?,?,?,?,?)\", ('ses_upgrade','global','upgrade','/tmp/upgrade','Preserved conversation','2',1,2,json.dumps([{'action':'shell','resource':'*','effect':'deny'}])))",
+      "c.execute(\"INSERT INTO session_message (id,session_id,type,seq,time_created,time_updated,data) VALUES (?,?,?,?,?,?,?)\", ('msg_upgrade','ses_upgrade','user',0,1,2,json.dumps({'text':'Keep this conversation','time':{'created':1}})))",
+      "c.commit()", "c.close()",
+    ].join("; "), database, AUTH_SECRET], { encoding: "utf8" });
+    assert.equal(seed.status, 0, seed.stderr);
+    await writeFile(join(previousRoot, "state", "retained-state"), "keep me");
+    const before = hash(await readFile(database));
+    const markerBefore = await readFile(join(previousRoot, "generation.json"), "utf8");
+    const args = ["prepare", "--root", root, "--source-data", source,
+      "--v2-bin", V2_BIN, "--target-version", TARGET_VERSION, "--timeout", "30"];
+
+    const failing = [...args];
+    failing[failing.indexOf("--v2-bin") + 1] = join(sandbox, "missing-runtime");
+    const failed = runMigrator(python, failing);
+    assert.equal(failed.status, 1);
+    assert.match(failed.stderr, /missing_v2_runtime/);
+    assert.equal((await readFile(join(root, "current"), "utf8")).trim(), previous);
+    assert.equal(hash(await readFile(database)), before);
+
+    const upgraded = runMigrator(python, args);
+    assert.equal(upgraded.status, 0, upgraded.stderr);
+    assert.doesNotMatch(upgraded.stdout + upgraded.stderr, new RegExp(AUTH_SECRET));
+    const result = JSON.parse(upgraded.stdout);
+    assert.equal(result.status, "upgraded");
+    assert.notEqual(result.generation, previous);
+    const current = join(root, "generations", result.generation);
+    assert.equal(sqliteTableCounts(python, join(current, "data", "opencode", "opencode.db")).credential, 1);
+    assert.equal(sqliteTableCounts(python, join(current, "data", "opencode", "opencode.db")).session_message, 1);
+    assert.equal(await readFile(join(current, "state", "retained-state"), "utf8"), "keep me");
+    assert.equal(hash(await readFile(database)), before);
+    assert.equal(await readFile(join(previousRoot, "generation.json"), "utf8"), markerBefore);
+    assert.equal(await readFile(join(source, "auth.json"), "utf8"), AUTH_SECRET);
+    const marker = JSON.parse(await readFile(join(current, "generation.json"), "utf8"));
+    assert.equal(marker.previous_generation, previous);
+    assert.equal(marker.target_version, TARGET_VERSION);
+
+    const restarted = runMigrator(python, args);
+    assert.equal(restarted.status, 0, restarted.stderr);
+    assert.equal(JSON.parse(restarted.stdout).generation, result.generation);
+    assert.equal(hash(await readFile(database)), before);
+    assert.equal((await readdir(join(root, "generations"))).length, 2);
+    const downgrade = runMigrator(python, previousArgs);
+    assert.equal(downgrade.status, 1);
+    assert.match(downgrade.stderr, /target_version_mismatch/);
+    assert.equal((await readFile(join(root, "current"), "utf8")).trim(), result.generation);
   });
 });
