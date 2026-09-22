@@ -3,6 +3,7 @@ import { TOOL_PROFILES } from "../ha-mcp-server/lib/tool-profiles.js";
 
 export const DEFAULT_PLUGIN_PACKAGE = "file:///opt/opencode-v2-homeassistant/mcp-plugin";
 export const DEFAULT_RUNTIME_GUARD_PACKAGE = "file:///opt/opencode-v2-homeassistant/runtime-guard-plugin";
+export const DEFAULT_CONTEXT_PACKAGE = "file:///opt/opencode-v2-homeassistant/context-plugin";
 export const DEFAULT_MCP_ENDPOINT = "http://127.0.0.1:8765/mcp";
 export const DEFAULT_NATIVE_MCP_ENDPOINT = "http://127.0.0.1:8765/native-mcp";
 export const DEFAULT_WORKSPACE = "/homeassistant";
@@ -117,6 +118,7 @@ export function buildManagedConfig({
     ...(userHooks ? ["/opt/ha-mcp-server/USER_HOOKS.md"] : []),
     `${workspace}/AGENTS.local.md`,
   ];
+  plugins.push({ package: DEFAULT_CONTEXT_PACKAGE, options: { files: instructions } });
 
   return {
     $schema: "https://opencode.ai/config.json",
@@ -128,7 +130,6 @@ export function buildManagedConfig({
     formatter: false,
     lsp: false,
     skills: ["/opt/ha-mcp-server/skills"],
-    instructions,
     agents: {
       [READ_ONLY_AGENT_ID]: {
         description: "Investigate and diagnose Home Assistant with no ability to change anything.",

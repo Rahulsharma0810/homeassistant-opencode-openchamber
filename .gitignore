@@ -21,3 +21,17 @@ npm-debug.log*
 
 # Build artifacts
 *.tgz
+
+# Local maintainer guidance and implementation plans
+/AGENTS.md
+/RELEASING.md
+/OPENCODE_UPGRADE_CHECKLIST.md
+/OPENCODE_V2_FUTURE.md
+/PLAN*.md
+/*_PLAN.md
+/plans/
+/docs/internal/
+
+# Component implementation docs and manual acceptance notes
+/ha_opencode*/rootfs/opt/*/README.md
+/ha_opencode*/test/*-acceptance.md

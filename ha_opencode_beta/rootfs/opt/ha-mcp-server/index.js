@@ -4617,10 +4617,11 @@ async function handleToolCall(request) {
           params.append("significant_changes_only", "0");
           params.append("skip_initial_state", "true");
         }
-        if (!includeAttributes) {
-          // no_attributes keeps exact repeated values cheap without enabling
-          // minimal_response, which can collapse same-state recorder rows.
-          if (!includeAllChanges) params.append("minimal_response", "true");
+        if (!includeAttributes && !includeAllChanges) {
+          // Core can use last_changed to skip attribute-only records when
+          // no_attributes is combined with skip_initial_state. Complete mode
+          // must retrieve full rows and remove attributes locally instead.
+          params.append("minimal_response", "true");
           params.append("no_attributes", "true");
         }
 
@@ -4637,6 +4638,11 @@ async function handleToolCall(request) {
         } else {
           if (cached) deleteHistoryCacheEntry(historyPath);
           history = await callHA(historyPath);
+          if (includeAllChanges && !includeAttributes && Array.isArray(history)) {
+            history = history.map((states) => Array.isArray(states)
+              ? states.map(({ attributes: _attributes, ...state }) => state)
+              : states);
+          }
           if (cacheable) cacheHistory(historyPath, history, now);
         }
         const events = Array.isArray(history?.[0]) ? history[0] : [];

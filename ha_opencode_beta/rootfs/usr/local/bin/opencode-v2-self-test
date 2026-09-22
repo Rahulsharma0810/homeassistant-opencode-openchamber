@@ -260,14 +260,14 @@ def exercise_policy(client, expected_version, mcp_enabled, native_mcp_enabled, r
             and isinstance(plugin.get("state"), dict)
             and plugin["state"].get("status") == "active"
         }
-        if "homeassistant.runtime-guard" not in active:
+        if not {"homeassistant.runtime-guard", "homeassistant.context"}.issubset(active):
             return None
         if mcp_enabled and "homeassistant.mcp" not in active:
             return None
         return active
 
     active_plugins = wait_for("Home Assistant V2 runtime guard", active_plugin_ids)
-    reporter.ok("Home Assistant V2 runtime guard is active")
+    reporter.ok("Home Assistant V2 runtime guard and context plugin are active")
     if mcp_enabled:
         reporter.ok("Home Assistant V2 MCP plugin is active")
     elif "homeassistant.mcp" in active_plugins:

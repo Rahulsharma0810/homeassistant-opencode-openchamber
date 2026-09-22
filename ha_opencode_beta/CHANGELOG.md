@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## 3.0.0b17
+
+- Fixed timed-out or cancelled CLI tools leaving subprocesses running; process-tree tests now check actual termination, including descendants that ignore graceful shutdown.
+- Fixed complete compact history omitting attribute-only updates and repeated values. Full recorder rows are retrieved before attributes are removed locally.
+- Added bounded automatic V2 context delivery for home briefing, decision notes and configured instruction sources, including tool continuations and plugin reloads, independently of MCP enablement.
+- Corrected V1 rollback smoke checks for inactive s6 service entries and labeled retained V1 component checks separately from active V2 integration evidence.
+- OpenCode remains pinned to 2.0.13. V2 LSP/formatting, OpenChamber V2 integration, and the default free model's read-only-agent compatibility remain under development.
+
 ## 3.0.0b16
 
 - Fixed `target_version_mismatch` startup failures by upgrading a private copy of existing V2 state, preserving conversations, sign-ins, and session permissions while retaining the original generation for recovery.

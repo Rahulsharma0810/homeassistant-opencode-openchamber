@@ -28,7 +28,7 @@ class PolicyTest(unittest.TestCase):
             "--plugin-enabled", "false", "--native-mcp-enabled", "false",
         ], text=True))
 
-    def exercise(self, plugins, mcp=False):
+    def exercise(self, plugins, mcp=False, context=True):
         requests = []
 
         class Client:
@@ -41,7 +41,7 @@ class PolicyTest(unittest.TestCase):
                     return None
                 return {
                     "/api/info": {"version": VERSION},
-                    "/api/plugin": {"data": plugins},
+                    "/api/plugin": {"data": plugins + ([{"id": "homeassistant.context", "state": {"status": "active"}}] if context else [])},
                     "/api/mcp": {"data": [{"name": "homeassistant", "status": {"status": "connected"}}] if mcp else []},
                     f"/api/agent/{AGENT}": {"data": {"id": AGENT, **self.config["agents"][AGENT]}},
                 }[path]
@@ -60,6 +60,10 @@ class PolicyTest(unittest.TestCase):
             {"id": name, "state": {"status": "active"}}
             for name in ("homeassistant.runtime-guard", "homeassistant.mcp")
         ], mcp=True)
+
+    def test_missing_context_plugin_fails_closed(self):
+        with self.assertRaisesRegex(POLICY["SelfTestError"], "timed out waiting"):
+            self.exercise([{"id": "homeassistant.runtime-guard", "state": {"status": "active"}}], context=False)
 
     def test_invalid_or_legacy_state_fails_closed(self):
         for state in (None, "active", [], {}, {"type": "active"}, {"status": "inactive"}):
