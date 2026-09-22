@@ -3,6 +3,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## 2.5.6
+
+- Fixed screenshot authentication and now report login, navigation, or frontend-readiness failures instead of successful dashboard captures (#121).
+- Devcontainer builds now tolerate Windows line endings in build metadata.
+
 ## 2.5.5
 
 - **Quit OpenCode from the browser terminal (#113)** — added a compact top-right quit button using the existing ttyd page injection. It requests the managed terminal instance's graceful exit, returns to the shell, and leaves tab-disconnect persistence and independent servers intact. Exit requests are Ingress-only, bound to the displayed instance, and never escalate to a force-kill. Verified through real Home Assistant Core Ingress in the official devcontainer, including active MCP/LSP cleanup, saved-conversation recovery, shared terminals, customized bindings, and emulated mobile touch.

@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## 3.0.0b15
+
+- Fixed screenshot authentication and now report login, navigation, or frontend-readiness failures instead of successful dashboard captures (#121).
+- Devcontainer builds now tolerate Windows line endings in build metadata.
+
 ## 3.0.0b14
 
 - **Reliable Home Assistant MCP plugin reactivation (#112)** — fixed intermittent `EAGAIN: resource temporarily unavailable, read` errors that could leave Home Assistant tools unavailable after plugin reloads. The V2 server now retains its MCP credential safely across reloads instead of rereading a one-use file descriptor.
