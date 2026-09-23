@@ -22,7 +22,7 @@ All notable changes to this project will be documented in this file.
 - Components update through **Home Assistant Supervisor**. Beta and stable retain separate histories and sign-ins; installing stable does not import your beta data.
 - The V1 browser-terminal quit overlay is retired; use the terminal's own exit action.
 
-See the [upgrade guide](DOCS.md#upgrading-from-2x) for migration, recovery and current limitations, including custom-skill discovery.
+See the [upgrade guide](https://github.com/magnusoverli/opencode/blob/v3.0.0/ha_opencode/DOCS.md#upgrading-from-2x) for migration, recovery and current limitations, including custom-skill discovery.
 
 ## 2.5.6
 
