@@ -25,9 +25,7 @@ npm-debug.log*
 # Local maintainer guidance and implementation plans
 /AGENTS.md
 /RELEASING.md
-/OPENCODE_UPGRADE_CHECKLIST.md
-/OPENCODE_V2_FUTURE.md
-/PLAN*.md
+/PLAN.md
 /*_PLAN.md
 /plans/
 /docs/internal/
