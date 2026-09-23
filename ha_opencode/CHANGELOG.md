@@ -3,6 +3,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## 3.0.1
+
+- **V2 upgrade recovery ([#122](https://github.com/magnusoverli/opencode/issues/122))** — corrected the session validator's ordering of equal-time messages with mixed-case IDs to match OpenCode V2's migration. This can prevent a false `session_projection_mismatch` when a session's agent or model is inferred from its latest user message.
+- If migration still cannot be validated, startup logs now identify the differing session *column names* without exposing their values, and the terminal shows a persistent explanation instead of `[exited]`. Existing V1 data remains intact for a retry or restoration from backup.
+
 ## 3.0.0
 
 🥳 **OpenCode V2 has arrived!** A major upgrade for your Home Assistant assistant, with a refreshed OpenChamber experience and a shared backend that keeps your conversations together.

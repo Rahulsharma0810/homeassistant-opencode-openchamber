@@ -33,6 +33,20 @@ if jq -e '(.source.provider_auth_count // 0) > 0' /data/v2/migration.json >/dev/
 fi
 echo ""
 
+if [ ! -f /run/opencode-v2/ready ] || [ ! -f /run/opencode-v2-homeassistant.ready ]; then
+    if jq -e '.status == "failed" and .error == "session_projection_mismatch"' /data/v2/migration.json >/dev/null 2>&1; then
+        echo -e "${YELLOW}${BOLD}OpenCode could not start: conversation migration needs attention.${NC}"
+        echo -e "${GRAY}The V1-to-V2 session check found a mismatch. Your existing state was preserved.${NC}"
+        echo -e "${GRAY}Check the add-on logs for 'session_projection_mismatch' and the differing field names.${NC}"
+    else
+        echo -e "${YELLOW}${BOLD}OpenCode could not start: the V2 server is not ready.${NC}"
+        echo -e "${GRAY}Check the add-on logs for the startup error.${NC}"
+    fi
+    echo -e "${GRAY}To return to 2.x, restore your pre-upgrade Home Assistant backup (app and data).${NC}"
+    echo -e "${GRAY}Restart the add-on after a corrected update to retry. This screen stays open.${NC}"
+    exec sleep infinity
+fi
+
 if [ ! -x /usr/local/bin/opencode-v2-tui-launch ]; then
     echo -e "${YELLOW}V2 TUI launcher is unavailable. Inspect the app logs.${NC}" >&2
     exit 126

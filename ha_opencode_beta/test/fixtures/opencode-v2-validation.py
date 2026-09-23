@@ -23,6 +23,7 @@ def expect_error(code, callback):
     except MIGRATOR.MigrationError as error:
         if error.code != code:
             raise AssertionError(f"expected {code}, got {error.code}") from error
+        return error
     else:
         raise AssertionError(f"expected {code}")
 
@@ -594,10 +595,11 @@ with tempfile.TemporaryDirectory(prefix="opencode-v2-validation-") as temporary:
                 f"UPDATE session_v2 SET {column}=? WHERE id=?", (changed, user_session)
             )
             target.commit()
-            expect_error(
+            error = expect_error(
                 "session_projection_mismatch",
                 lambda: MIGRATOR.validate_session_projection(source_path, target_path),
             )
+            assert error.fields == (column,), (column, error.fields)
             target.execute(
                 f"UPDATE session_v2 SET {column}=? WHERE id=?", (original, user_session)
             )
@@ -696,6 +698,28 @@ with tempfile.TemporaryDirectory(prefix="opencode-v2-validation-") as temporary:
         target.execute("UPDATE kv SET value=? WHERE key='wellknown:sources'", (json.dumps(["existing"]),))
         target.commit()
         assert MIGRATOR.validate_no_credentials(target_path, source_path) == 0
+
+        # Equal-time base62 IDs sort differently with Python's default ordering
+        # and upstream's localeCompare(). That changes the most recent user's
+        # projected agent and model if the session did not store either field.
+        tied = "ses_tied"
+        lower = "msg_000000000040aaaaaaaaaaaaaa"
+        upper = "msg_000000000040Aaaaaaaaaaaaaa"
+        tied_source = add_session(source, tied, agent=None, model=None)
+        for message_id, agent in ((lower, "first"), (upper, "second")):
+            value = user_message()
+            value["agent"] = agent
+            value["model"]["modelID"] = agent
+            add_message(source, message_id, tied, 1000, value)
+            add_part(source, f"part_{agent}", message_id, tied, {"type": "text", "text": agent})
+            add_target(target, message_id, tied, "user", int(agent == "second"), 1000,
+                       {"text": agent, "time": {"created": 1000}})
+        add_target_session(target, tied_source, agent="second",
+                           model={"id": "second", "providerID": "provider", "variant": "default"})
+        target.execute("INSERT INTO event_sequence VALUES (?,?,NULL)", (tied, 1))
+        source.commit()
+        target.commit()
+        assert MIGRATOR.validate_session_projection(source_path, target_path) == (5, 9, expected_parts + 2)
     finally:
         source.close()
         target.close()

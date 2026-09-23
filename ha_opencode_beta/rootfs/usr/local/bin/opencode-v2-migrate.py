@@ -96,9 +96,12 @@ TARGET_ONLY_SESSION_DEFAULTS = {
 
 
 class MigrationError(Exception):
-    def __init__(self, code: str):
+    def __init__(self, code: str, *, fields: tuple[str, ...] = ()):
         super().__init__(code)
         self.code = code
+        # Column names only. Source and converted session values may contain
+        # prompts, file paths, provider details, or other private data.
+        self.fields = fields
 
 
 def parse_args() -> argparse.Namespace:
@@ -650,6 +653,17 @@ def synthetic_id(source: str, used: set[str]) -> str:
         salt += 1
 
 
+def v1_message_sort_key(message: dict) -> tuple:
+    # OpenCode 2.0.13 sorts equal-timestamp V1 messages by id.localeCompare().
+    # Python's default ordering puts uppercase before lowercase; for the
+    # base62 message IDs used by V1, localeCompare orders case-insensitively
+    # first and lowercase before uppercase when the folded IDs are equal.
+    identifier = message["id"]
+    if re.fullmatch(r"msg_[0-9A-Za-z]+", identifier):
+        return (message["time_created"], identifier.lower(), tuple(c.isupper() for c in identifier))
+    return (message["time_created"], identifier, ())
+
+
 def serialize_recent(messages: list[dict], parts_by_message: dict[str, list[dict]]) -> str:
     result = []
     for message in messages:
@@ -692,7 +706,7 @@ def project_session(
                 "value": value,
             }
         )
-    messages.sort(key=lambda item: (item["time_created"], item["id"]))
+    messages.sort(key=v1_message_sort_key)
     message_ids = {message["id"] for message in messages}
     parts_by_message: dict[str, list[dict]] = {}
     validated_parts = 0
@@ -1039,8 +1053,12 @@ def validate_session_projection(
                     actual_session[column] = decode_json(
                         actual_session[column], "invalid_target_session"
                     )
-            if not json_equal(expected_session, actual_session):
-                raise MigrationError("session_projection_mismatch")
+            differing = tuple(
+                column for column in expected_session
+                if not json_equal(expected_session[column], actual_session[column])
+            )
+            if differing:
+                raise MigrationError("session_projection_mismatch", fields=differing)
 
             sequence_rows = target.execute(
                 "SELECT seq, owner_id FROM event_sequence WHERE aggregate_id=?",
@@ -1996,6 +2014,7 @@ def prepare(args: argparse.Namespace) -> dict:
                     "status": "failed",
                     "generation": generation,
                     "error": failure.code,
+                    **({"error_fields": list(failure.fields)} if failure.fields else {}),
                     "target_version": args.target_version,
                 },
             )
@@ -2012,7 +2031,8 @@ def main() -> int:
         print(json.dumps({"status": result["status"], "generation": result["generation"]}))
         return 0
     except MigrationError as error:
-        print(f"OpenCode V2 migration deferred: {error.code}", file=sys.stderr)
+        fields = f" (fields: {', '.join(error.fields)})" if error.fields else ""
+        print(f"OpenCode V2 migration deferred: {error.code}{fields}", file=sys.stderr)
         return 1
     except Exception:
         print("OpenCode V2 migration deferred: migration_internal_error", file=sys.stderr)

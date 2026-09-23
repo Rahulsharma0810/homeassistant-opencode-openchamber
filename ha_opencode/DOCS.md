@@ -27,6 +27,13 @@ the pre-upgrade Home Assistant backup, including the prior app version and data.
 Do not point V1 at converted V2 state. Updates to bundled components are delivered
 through Home Assistant Supervisor.
 
+If startup reports `session_projection_mismatch`, the add-on preserves the old
+state and does not start the V2 server. In versions with field diagnostics, the
+add-on log also names the session columns that differ (without showing their
+values); include the error and field names when reporting a failure. A corrected
+app update retries migration on restart. Do not delete the old database or the
+migration journal to force startup.
+
 **Current limitations:** user-added custom skills may survive restart without
 appearing in the V2 skill catalog; shipped Home Assistant skills are available.
 The former browser-terminal quit overlay is not included in V2; use the terminal's
