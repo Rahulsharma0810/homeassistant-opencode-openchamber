@@ -6,6 +6,18 @@ the remaining list current instead of accumulating historical plans.
 
 ## Stable 3.0.0 promotion — 2026-09-23
 
+- **Published:** `v3.0.0` at `3ccd803f67ec070f4a42b23757bae72bff7280d2`
+  (adoption `8ef709a`, release-link correction `3ccd803`); storefront `8f66fa2`
+  advertises stable `3.0.0`. Beta remains `3.0.0b22`.
+- Repository CI `35875611963`, native stable image checks `35875460284`, initial
+  publication `35875472577`, release `35876412293` and final tag publication
+  `35876412229` passed. Both native release builds ran the V2 boundary fixture.
+- Release assets `container-images.md` and `image-manifest.txt` are attached;
+  the manifest attachment agrees with the registry's final index
+  `sha256:8324ebe345b4cbfdaaad27efe071f9e0f549145e27e49345a978248439e9b45b`.
+  Platform manifests: amd64
+  `sha256:c066452dbbe0dcbd7aff5efd770c10e027f4f9b93ec9c47327edf2d1949a5cb1`, arm64
+  `sha256:4b075537d434062bc6bee06cbc73d0498d02c53fe5cbbc5d78aaafb3d0e4646f`.
 - User explicitly ended the broad acceptance campaign and authorized stable
   publication from final beta b22. The earlier gate table below is historical;
   unperformed HAOS/soak/account checks remain unperformed, not implicitly passed.
@@ -18,7 +30,7 @@ the remaining list current instead of accumulating historical plans.
 - Retire V1-only helpers and the SIGHUP-based terminal quit overlay rather than
   applying its process-control assumptions to V2. The guide records this change.
 - Stable CI adopts the V2 contracts and target-native boundary stage. Publication
-  waits for repository checks and native amd64/arm64 stable image builds.
+  completed after repository checks and native amd64/arm64 stable image builds.
 
 ## Starting point
 
