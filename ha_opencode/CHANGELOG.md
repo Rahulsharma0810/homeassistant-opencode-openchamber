@@ -3,6 +3,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## 3.0.5
+
+- **Fix OpenAI browser sign-in in OpenChamber** — bridge OpenCode V2's localhost OAuth callback through an Ingress handoff page. After OpenAI redirects to an unreachable `localhost` URL, paste that full URL into the handoff page to deliver the callback inside the add-on; OpenChamber then completes its normal sign-in polling. The callback URL and authorization code are not written to logs.
+
 ## 3.0.4
 
 - **Restore stable decision-note access ([#126](https://github.com/magnusoverli/opencode/issues/126))** — run the stable Home Assistant MCP sidecar with the stable channel and `/homeassistant/opencode` decision-notes directory. Stable `recall_decisions` and `remember_decision` now use the same notes as the stable session briefing; beta's separate notes remain untouched.

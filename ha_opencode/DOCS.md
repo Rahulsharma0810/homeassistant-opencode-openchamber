@@ -407,10 +407,13 @@ This takes precedence over the new-chat model defaults; those defaults are used
 when no remembered model is available. The configured agent still applies, and
 existing sessions keep their own selections.
 
-Use `/connect` in the terminal. Where offered, choose a headless/device-code
-method: a provider's `localhost` browser callback otherwise points at the browsing
-computer rather than this container. OpenAI OAuth has been verified on amd64 HAOS;
-other providers may have different callback requirements.
+In OpenChamber, select **ChatGPT Pro/Plus (browser)** to sign in with OpenAI.
+The sign-in link opens a handoff page: continue to OpenAI, then, if the browser
+cannot open the `localhost` callback, copy its full URL from the address bar
+into the handoff page and select **Complete sign-in**. Return to OpenChamber;
+it will finish connecting automatically. You can also use `/connect` in the
+terminal and choose **ChatGPT Pro/Plus (headless)** for a device-code flow.
+Other providers may have different callback requirements.
 
 The first V2 activation migrates sessions but does not copy legacy V1 provider
 credentials because the formats are incompatible. Authenticate each provider
