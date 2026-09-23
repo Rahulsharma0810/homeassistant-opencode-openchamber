@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { createRequire } from 'node:module';
+import { resolve } from 'node:path';
 import { createServer, request as httpRequest } from 'node:http';
 import { once } from 'node:events';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -8,7 +9,9 @@ import { registerEditorLspRoutes, sameOrigin } from '../rootfs/opt/openchamber/e
 import { documentPath } from '../rootfs/opt/opencode-v2-homeassistant/lsp-client.js';
 import { DraftSession, eligiblePath, diagnosticsFor, completionsFor } from '../rootfs/opt/openchamber/editor-lsp/editor-core.mjs';
 
-const require = createRequire(new URL('../rootfs/opt/ha-mcp-server/package.json', import.meta.url));
+const require = createRequire(process.env.HA_EDITOR_TEST_DEPS
+  ? resolve(process.env.HA_EDITOR_TEST_DEPS, 'package.json')
+  : new URL('../rootfs/opt/ha-mcp-server/package.json', import.meta.url));
 const express = require('express');
 const draft = { path: '/homeassistant/draft.yaml', text: 'entity_id: light.test', editorId: 'editor-1', version: 3 };
 async function fixture(t, requestLsp, options = {}) {

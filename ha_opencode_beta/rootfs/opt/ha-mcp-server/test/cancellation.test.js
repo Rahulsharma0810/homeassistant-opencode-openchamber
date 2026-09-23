@@ -22,7 +22,9 @@ async function running(pid) {
     const stat = await readFile(`/proc/${pid}/stat`, "utf8");
     return !["Z", "X"].includes(stat.slice(stat.lastIndexOf(")") + 2).split(" ")[0]);
   } catch (error) {
-    if (error.code === "ENOENT") return false;
+    // procfs may open the stat entry just before the task disappears. In that
+    // case read returns ESRCH rather than open returning ENOENT; both mean gone.
+    if (error.code === "ENOENT" || error.code === "ESRCH") return false;
     throw error;
   }
 }
