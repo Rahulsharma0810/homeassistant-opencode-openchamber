@@ -1,15 +1,15 @@
 #!/bin/bash
-# Mechanical beta-to-stable promotion is intentionally disabled. Beta targets
-# OpenCode V2 from 3.0.0b0 while stable remains on the certified V1 runtime.
+# Mechanical beta-to-stable promotion is intentionally disabled. Each release
+# needs reviewed channel identity, migration and release-note handling.
 
 set -euo pipefail
 
 cat >&2 <<'EOF'
 error: beta-to-stable copying is disabled.
 
-ha_opencode_beta targets OpenCode V2 while ha_opencode remains on V1. Copying
-the beta Dockerfile, rootfs, or tests over stable would bypass the V2 migration,
-rollback, and parity gates. Stable V2 adoption requires its own reviewed plan.
+Stable 3.0 adopted the reviewed V2 implementation from beta. Future promotion
+still requires review: preserve stable identity/storage, reconcile migrations
+and options, consolidate the stable changelog, and run the release checks.
 
 Use scripts/check-addon-options.sh for per-channel option validation.
 EOF

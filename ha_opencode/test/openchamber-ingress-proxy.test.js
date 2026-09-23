@@ -646,7 +646,9 @@ describe("openchamber ingress proxy: disconnected clients", () => {
 });
 
 describe("openchamber ingress proxy: release parity", () => {
-  it("ships the tested proxy implementation in both channels", () => {
-    assert.equal(fs.readFileSync(PROXY_SCRIPT, "utf8"), fs.readFileSync(STABLE_PROXY_SCRIPT, "utf8"));
+  it("keeps stable and beta V2 forwarding identical", () => {
+    const stable = fs.readFileSync(STABLE_PROXY_SCRIPT, "utf8");
+    const beta = fs.readFileSync(path.join(__dirname, "..", "..", "ha_opencode_beta", "rootfs", "usr", "local", "bin", "openchamber-ingress-proxy.js"), "utf8");
+    assert.equal(beta, stable);
   });
 });

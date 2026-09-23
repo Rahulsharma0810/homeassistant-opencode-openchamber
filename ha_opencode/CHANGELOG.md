@@ -3,6 +3,27 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## 3.0.0
+
+🥳 **OpenCode V2 has arrived!** A major upgrade for your Home Assistant assistant, with a refreshed OpenChamber experience and a shared backend that keeps your conversations together.
+
+### Highlights
+
+- **One backend, two interfaces:** the terminal and OpenChamber now share the same app-managed OpenCode V2 runtime and conversation history.
+- **A better web workspace:** refreshed OpenChamber, YAML completion and diagnostics, corrected Usage reporting, and last-used model selection for new chats.
+- **Stronger Home Assistant integration:** credential-isolated tools, reliable concurrent MCP sessions, native YAML formatting, and improved cancellation and update reporting.
+- **Secure optional LAN access:** separately authenticated frontends behind your trusted HTTPS reverse proxy.
+
+### Before upgrading
+
+- **Create a Home Assistant backup first.** Existing stable conversation history migrates on first startup; returning to V1 requires restoring your pre-upgrade backup.
+- **Sign in to providers again.** V1 browser/OAuth sign-ins are not imported; API keys configured in app options are handled separately.
+- **Review LAN and custom configuration settings.** LAN access now requires authentication and HTTPS-proxy settings. Unsupported custom configuration is rejected with an explanation.
+- Components update through **Home Assistant Supervisor**. Beta and stable retain separate histories and sign-ins; installing stable does not import your beta data.
+- The V1 browser-terminal quit overlay is retired; use the terminal's own exit action.
+
+See the [upgrade guide](DOCS.md#upgrading-from-2x) for migration, recovery and current limitations, including custom-skill discovery.
+
 ## 2.5.6
 
 - Fixed screenshot authentication and now report login, navigation, or frontend-readiness failures instead of successful dashboard captures (#121).

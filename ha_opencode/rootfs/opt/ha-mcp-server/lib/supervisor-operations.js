@@ -61,13 +61,17 @@ function projectResolutionRecord(record) {
   };
 }
 
+export function hasJobErrors(job) {
+  return asArray(job?.errors).length > 0;
+}
+
 function projectJobs(jobs) {
   const records = asArray(jobs);
   return {
     total: records.length,
     active: records.filter((job) => !job?.done).length,
     completed: records.filter((job) => job?.done).length,
-    failed: records.filter((job) => job?.done && asArray(job?.errors).length > 0).length,
+    failed: records.filter((job) => job?.done && hasJobErrors(job)).length,
   };
 }
 

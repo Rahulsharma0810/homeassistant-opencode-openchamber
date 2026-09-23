@@ -1,8 +1,24 @@
-# OpenCode V2: remaining work toward stable 3.0
+# OpenCode V2: stable 3.0 release record
 
 Updated: 2026-09-23. This is the single shared plan for this work, tracked in Git.
 Only open tasks appear as checkboxes; close them with concrete evidence and keep
 the remaining list current instead of accumulating historical plans.
+
+## Stable 3.0.0 promotion — 2026-09-23
+
+- User explicitly ended the broad acceptance campaign and authorized stable
+  publication from final beta b22. The earlier gate table below is historical;
+  unperformed HAOS/soak/account checks remain unperformed, not implicitly passed.
+- Adopt b22 runtime, protected migration, integration workers, UI patches and
+  tests into the stable folder. Preserve stable slug/image, `/data`, notes,
+  startup-hook paths and existing stable changelog history. Beta stays separate.
+- Stable release notes consolidate the user-visible changes since 2.5.6. The
+  upgrade guide covers backup/recovery, provider reauthentication, LAN/custom
+  config changes, upstream preview status and unresolved custom-skill discovery.
+- Retire V1-only helpers and the SIGHUP-based terminal quit overlay rather than
+  applying its process-control assumptions to V2. The guide records this change.
+- Stable CI adopts the V2 contracts and target-native boundary stage. Publication
+  waits for repository checks and native amd64/arm64 stable image builds.
 
 ## Starting point
 

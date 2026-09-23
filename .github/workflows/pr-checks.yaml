@@ -56,13 +56,15 @@ jobs:
       - name: Native provider credential loader boundary
         run: sudo "$(command -v node)" --test ha_opencode_beta/test/opencode-v2-provider-environment.test.js
 
+      - name: Install exact V2 stable dependency set for integrated contracts
+        working-directory: ha_opencode/rootfs/opt/opencode-v2-homeassistant
+        run: npm ci --no-audit --no-fund && npm run verify:versions
+
       - name: Stable add-on contract tests
         run: node --test "ha_opencode/test/*.test.js"
 
-      - name: Stable terminal quit process-control tests
-        env:
-          PYTHONDONTWRITEBYTECODE: "1"
-        run: python3 ha_opencode/test/terminal-control.test.py
+      - name: Stable native provider credential loader boundary
+        run: sudo "$(command -v node)" --test ha_opencode/test/opencode-v2-provider-environment.test.js
 
       - name: HA-facing MCP discovery and service lifecycle contracts
         run: node --test scripts/ha-facing-discovery.test.mjs
