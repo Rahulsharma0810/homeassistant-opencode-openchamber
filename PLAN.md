@@ -250,6 +250,30 @@ only to restore supported behavior or correct a demonstrated release blocker.
 
 ## 2. Investigation and operational work
 
+### Final-beta follow-up (3.0.0b22)
+
+- User ended general acceptance testing and requested two targeted OpenChamber
+  changes, followed by commit/push and publication of a final beta candidate.
+- Usage root cause verified in pinned preview source: its auth reader resolves
+  `HOME=/data` to the retained V1 store, while the backend uses the activated V2
+  generation. Bootstrap now supplies that generation's database path from the
+  protected readiness marker; quota reads stay read-only and never merge/fall
+  back to V1 credentials. Account ordering matches pinned OpenCode, refreshed
+  credentials are re-read, and quota authorization errors are distinguished from
+  conversation/session expiry. OpenCode retains sole OAuth refresh ownership.
+- New-chat selection now consumes the already-persisted last-used model when
+  present in the catalog and protects that choice from asynchronous discovery.
+  Configured defaults remain the fallback; the selected agent and existing
+  session selections retain their own behavior. Model memory is browser-local.
+- Stable promotion is separate from this beta release. Prior unresolved findings
+  (including custom-skill discovery) are retained rather than marked passed.
+- Focused checks passed against the actual patched preview revision: 73 native
+  store tests (including three new model-memory cases), read-only SQLite quota
+  credential/login/refresh/disconnect regression, and 42 runtime/update-guidance
+  contracts. Quota requests used controlled HTTP responses; production OpenAI
+  quota access is not claimed. Release image builds repeat these focused checks
+  with the pinned Node/Bun runtimes on each native architecture.
+
 These need diagnosis or access to an affected environment; they are not merely
 unchecked tests. Record the cause before adding an implementation fix.
 
@@ -367,6 +391,17 @@ item instead of treating all untested behavior as broken.
   and instructions survive restarts and upgrades and actually reach sessions.
   Finish presentation, focus/context and startup-hook option checks, including
   clear unsupported combinations. Persistent skill discovery is already wired.
+  Qualification failure on the published b21 image (2026-09-23): a newly added
+  valid custom skill under `/data/.config/opencode/skills/<id>/SKILL.md` survives
+  Supervisor restart but is missing from `/api/skill`. The five shipped HA skills
+  remain present. Bounded checks also failed after location reload with a flat
+  Markdown skill, a copied shipped skill under a new ID, explicit 0755/0644 modes,
+  and a direct authenticated backend read (not just the managed CLI). All synthetic
+  files were cleaned up. The effective native configuration lists the intended
+  skill directory. Upstream `v2.0.13` skill-source/parser code documents and scans
+  these forms; root cause remains unisolated. Do not mark custom-skill discovery
+  passed or change runtime pins to work around it. This supported-workflow gap
+  needs resolution before promotion.
 - [ ] **V4 — Representative forward upgrades and backup/restore.** Exercise
   stable `2.5.6`, earlier beta and b17 data, preserving sessions, V2 credentials,
   permission rules, decision notes and supported customizations. Verify normal
@@ -403,6 +438,29 @@ item instead of treating all untested behavior as broken.
   context delivery/compaction; app restart; sidecar/server crashes; plugin reload;
   and session resume. Native formatting already preserves HA YAML tags and user
   preferences and respects disabled formatting/read-only edits in runtime tests.
+  Published b21 amd64 devcontainer evidence (2026-09-23):
+  `scripts/devcontainer-config-acceptance.mjs` passed explicit pinned Prettier
+  formatting, MCP safe-write dry-run with unchanged input, actual safe write and
+  full Core validation, `script.reload`, and read-only loaded/off verification.
+  A malformed-YAML write was rejected while preserving the last valid file.
+  Cleanup used supported script deletion for the synthetic registry entry, then
+  restored the original YAML byte-for-byte through the safe writer, reloaded and
+  verified exact-entity absence. The test script was never executed; no existing
+  script or device was operated. This tests the formatter explicitly; prior native
+  formatter-hook contracts remain separate evidence.
+  An initial negative fixture using an invalid script mode was accepted by Core's
+  global check; it was not reloaded. The original YAML and synthetic registry entry
+  were recovered through supported APIs. Core validation alone does not prove an
+  integration's configuration loaded, reinforcing the required reload/runtime check.
+  `scripts/devcontainer-restart-acceptance.py` passed session/message/permission,
+  options and custom-skill-file persistence across Supervisor app restart; packaged
+  policy and authenticated LSP reconnection; and a resumed real free-model reply.
+  Its overall result remains FAIL because the custom skill was not discovered (V3).
+  Free `opencode/big-pickle` rejected generation with the test's session-specific
+  shell-deny rule, extending the known custom-agent free-tier limitation. The final
+  scenario checks permission persistence while idle, then resets only its own
+  synthetic session to defaults before the resumed request. All test sessions,
+  skill files and checkpoints were removed. No production restart was performed.
 - [ ] **V7 — Remaining tool surfaces.** Exercise MCP resources/prompts and
   permitted subagents, with read-only denials where applicable. Use controlled
   scenarios for device control, firmware/updates, deletion and secret rotation.
@@ -467,10 +525,53 @@ item instead of treating all untested behavior as broken.
   This does not inspect or establish the absence of native stored OAuth credentials.
   Real PPQ/private-inference acceptance needs an appropriate account configured
   privately; controlled requests do not close that gate.
+  Published b21 follow-up (2026-09-23): after recovering the stopped official
+  devcontainer, protected beta backup `b2ac5d30` was created (mode 0600) and
+  Supervisor updated the development beta to the published release. Running image
+  index verified as `sha256:e3f1303b8be4b8560500f91f9d34a608f10a51cf4444b31ea18fe09f771c25cb`.
+  The opt-in OpenChamber driver passed real Chromium Ingress session CRUD, rendered
+  editor completion/diagnostic refresh, controlled-503 recovery and read-only editor
+  no-write checks, actual Zen/free-model reply display, Supervisor-only update
+  guidance, absent-backend recovery and independent UI stop/start. Original terminal
+  mode was restored. This closes those amd64 scenarios on the published b21 image;
+  it does not add arm64 HAOS or production-restart evidence.
 - [ ] **V9 — HAOS acceptance and soak.** Complete controlled HAOS acceptance on
   both architectures, then seven days of representative operation on each.
   Record versions, tool failures, crashes/restarts, orphan processes, resource
   growth and session continuity. Close blocking defects before I7's release.
+  User-supplied production report (2026-09-23 12:43–12:54 UTC): installed beta
+  `3.0.0b21`, amd64 HAOS 18.3/KVM, Core 2026.9.3, Supervisor 2026.09.3.
+  Non-disruptive acceptance reported 37 packaged policy checks passed; managed
+  loopback backend/UI and s6 ownership; successful OpenAI OAuth model/tool round
+  trips; HA state/history/logbook concurrency and subsequent MCP continuity;
+  native HA MCP; authenticated YAML LSP draft diagnostics/refresh/completion; and
+  credential-isolated ZHA device inspection. Bounded logs showed no blocking
+  failures. This is user-reported evidence, not a direct inspection from this
+  development session. No production changes or restart were performed.
+  Installed OCI identity remains unverified: the report began around the final
+  tag-build publication, so neither version label nor latest registry digest
+  alone identifies the image actually running on this host. Preserve the report
+  as version-labelled evidence until its installed digest is captured.
+  OpenChamber metadata discrepancy reconciled against immutable upstream source:
+  both `packages/web/package.json` and `packages/sdk/package.json` at pinned
+  revision `9fba129ddf968df1e5fb6916b84d3ceb35493198` declare `1.24.2`; the
+  app's declared preview identity is `2.0.0-preview.8`. This is not evidence of an
+  incorrect package. `/usr/local/share/openchamber-certified-version` records
+  the declared preview identity, not independent proof of the running image.
+  Remaining production checks: user-observed streaming/cancel/reconnect/editor,
+  approved app restart/session and permission continuity, source-version/baseline
+  upgrade evidence, approved harmless write/validate/reload, and seven-day soak.
+  PPQ and LAN were disabled (not applicable to this installation, not globally
+  qualified). Native arm64 build/boundary checks passed for b21; arm64 HAOS runtime
+  acceptance is still missing. Earlier devcontainer restore/lifecycle evidence
+  remains valid within its recorded candidate/platform scope.
+  Correction to the report's prospective LAN test: enabling OpenChamber LAN
+  also enables native login through Ingress; password rotation/app restart
+  invalidates both UI access paths' authentication state and interrupts the app.
+  User follow-up: production upgrade source confirmed as `3.0.0b20`; user manually
+  confirms OpenChamber streaming, session creation and cancellation work. Record
+  those three UI checks as operator-observed PASS. Old-session/permission and OAuth
+  sign-in preservation, browser reconnect and production restart are not implied.
 
 ## Execution order
 
@@ -508,6 +609,12 @@ item instead of treating all untested behavior as broken.
      (`HA_BACKUP_RESTORE_ACCEPTANCE=1`; actual beta-app partial backup/restore with
      a synthetic API session/permission and custom skill; preserves the recovery
      archive and removes only its own test assets)
+   - `scripts/devcontainer-restart-acceptance.py` (`HA_RESTART_ACCEPTANCE=1`;
+     real free-model session before/after Supervisor restart, persistence and
+     policy/LSP checks; intentionally fails if custom-skill discovery is missing)
+   - `scripts/devcontainer-config-acceptance.mjs` inside the development beta app
+     (`HA_CONFIG_ACCEPTANCE=1`, root with the non-dumpable preload; requires an empty
+     standard `scripts.yaml` and full MCP profile; safe-write/reload/failure/cleanup)
   - `ha_opencode_beta/test/openchamber-request-body.mjs` runs against the pinned
     preview during image builds, checking chunked/fixed-length request forwarding.
   - `ha_opencode_beta/test/v2-forward-fixture.py` and `v2-upgrade-acceptance.py`

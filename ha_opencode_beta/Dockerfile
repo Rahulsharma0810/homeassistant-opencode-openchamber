@@ -27,10 +27,18 @@ RUN node /tmp/patch-app-updates.cjs /opt/openchamber-preview
 COPY rootfs/opt/openchamber/patch-editor-lsp.cjs /tmp/patch-editor-lsp.cjs
 COPY rootfs/opt/openchamber/editor-lsp /tmp/editor-lsp
 RUN node /tmp/patch-editor-lsp.cjs /opt/openchamber-preview
+COPY rootfs/opt/openchamber/patch-usage-model.cjs /tmp/patch-usage-model.cjs
+RUN node /tmp/patch-usage-model.cjs /opt/openchamber-preview
 # Skip desktop/mobile lifecycle scripts; explicitly build only the SDK/web assets.
 RUN bun install --frozen-lockfile --ignore-scripts \
     && bun run --cwd packages/sdk build \
     && bun run --cwd packages/web build
+RUN --mount=type=bind,source=test/openchamber-model-fixture.cjs,target=/tmp/openchamber-model-fixture.cjs,readonly \
+    --mount=type=bind,source=test/openchamber-model-regressions.inc.ts,target=/tmp/openchamber-model-regressions.inc.ts,readonly \
+    --mount=type=bind,source=test/openchamber-usage.mjs,target=/tmp/openchamber-usage.mjs,readonly \
+    node /tmp/openchamber-model-fixture.cjs /opt/openchamber-preview \
+    && (cd packages/ui && bun test src/stores/useConfigStore.test.ts) \
+    && node --test /tmp/openchamber-usage.mjs
 COPY rootfs/opt/openchamber/patch-ingress.js /tmp/patch-ingress.cjs
 RUN node /tmp/patch-ingress.cjs /opt/openchamber-preview/packages/web
 COPY rootfs/opt/openchamber/patch-managed-backend.cjs /tmp/patch-managed-backend.cjs

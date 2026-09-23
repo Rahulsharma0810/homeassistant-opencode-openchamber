@@ -1,5 +1,5 @@
 import { constants, openSync, fstatSync, readSync, closeSync } from "node:fs";
-import { readLanConfig } from "../opencode-v2-homeassistant/lan-config.js";
+import { readLanConfig, readRuntimeFile } from "../opencode-v2-homeassistant/lan-config.js";
 
 // s6 starts Node with the app's native non-dumpable constructor before any secret
 // is read. Only the preview's process-owned auth state receives this credential.
@@ -28,6 +28,11 @@ function credential() {
 try {
   if (process.getuid() !== 0 || process.env.OPENCODE_HOST !== "http://127.0.0.1:4100" || process.env.OPENCODE_SKIP_START !== "true") throw new Error();
   globalThis[key] = credential();
+  // init publishes this root-owned marker only after activating a validated V2
+  // generation. Pass the path, never provider secrets, to the read-only quota reader.
+  const generation = readRuntimeFile("ready", 128).trim();
+  if (!/^\/data\/v2\/generations\/[a-f0-9]{32}$/.test(generation)) throw new Error();
+  process.env.OPENCODE_DB = `${generation}/data/opencode/opencode.db`;
   const lan = readLanConfig();
   if (lan.uiEnabled) process.env.OPENCHAMBER_AUTH_DIR = "/run/opencode-v2/openchamber-auth";
   const { startWebUiServer } = await import("/opt/openchamber-preview/packages/web/server/index.js");

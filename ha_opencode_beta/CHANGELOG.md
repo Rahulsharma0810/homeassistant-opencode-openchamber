@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## 3.0.0b22
+
+- Fixed OpenChamber Usage to read the active V2 provider credentials instead of retained V1 sign-ins, including account switches, token refreshes and disconnects.
+- New OpenChamber chats now start with the last-used available model; configured defaults remain the fallback when that model is unavailable.
+- Clarified OpenAI Usage authorization errors so an expired quota token does not imply that saved conversations have expired.
+
+- Recorded initial real-HAOS amd64 qualification for b21, including OpenAI OAuth and 37 policy checks, with remaining promotion gates tracked explicitly.
+- Added published-image restart/resume and safe configuration write/reload qualification; custom-skill discovery remains an identified promotion gap.
+
 ## 3.0.0b21
 
 - Restored opt-in LAN frontends with separate authentication, trusted HTTPS-proxy/origin checks and restart-scoped OpenChamber login credentials.

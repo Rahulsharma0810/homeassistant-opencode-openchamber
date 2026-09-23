@@ -366,6 +366,17 @@ and ARM/HAOS qualification remain pending.
 
 ### Connecting a provider with browser sign-in
 
+Starting with `3.0.0b22`, OpenChamber's **Usage** panel reads the same active V2
+credential database as the managed backend, rather than retained V1 sign-ins.
+OpenCode owns OAuth refresh. If Usage reports expired authorization after an idle
+period, send a chat message and refresh Usage; reconnect OpenAI if chat also fails.
+This warning concerns provider quota access, not saved conversation history.
+
+New OpenChamber chats remember the last-used available model in that browser.
+This takes precedence over the new-chat model defaults; those defaults are used
+when no remembered model is available. The configured agent still applies, and
+existing sessions keep their own selections.
+
 Use `/connect` in the terminal. Where offered, choose a headless/device-code
 method: a provider's `localhost` browser callback otherwise points at the browsing
 computer rather than this container. Real provider/OAuth compatibility remains
