@@ -25,7 +25,7 @@ at `/usr/share/doc/ha-opencode/NOTICE` and in this repository's
 
 - **Official V2 runtime**: Beta `3.0.0b16` pins the CLI and plugin to OpenCode `2.0.13` using the official `@opencode` packages.
 - **Forward state upgrades**: Earlier V2 data upgrades through a validated private copy, preserving conversations, sign-ins and permissions. Successful upgrades remove obsolete generations; failed conversion preserves its input and reports an error. There is no application runtime fallback or rollback selector.
-- **V2-only runtime**: The development candidate runs one pinned OpenCode V2 server. V1 and the runtime selector have been removed. The server runs as root for Home Assistant filesystem compatibility; its attached terminal runs as UID `60001`.
+- **V2-only runtime**: Beta `3.0.0b18` runs one pinned OpenCode V2 server. V1 and the runtime selector have been removed. The server runs as root for Home Assistant filesystem compatibility; its attached terminal runs as UID `60001`.
 - **Managed CLI**: `opencode` and `opencode2` address the same V2 server. `opencode status`, `opencode service status`, and `opencode api GET /api/info` inspect the existing server without starting another daemon.
 - **YAML language assistance**: The `ha_yaml_*` tools provide credentialed HA diagnostics, completion, hover and definitions through a supervised language-server worker. Approved native YAML writes use pinned Prettier formatting.
 - **Fresh V2 provider sign-in**: V1 sessions migrate into V2, but V1 provider credentials do not. Authenticate providers once with `/connect` in V2; the retained V1 credential remains untouched.

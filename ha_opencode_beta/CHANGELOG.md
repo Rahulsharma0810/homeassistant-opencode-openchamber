@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## 3.0.0b18
+
 - Removed the V1 runtime and runtime selector. `opencode` and its `opencode2` compatibility spelling now use the same managed V2 server; status/API diagnostics cannot automatically start a separate daemon.
 - Added a credential-isolated Home Assistant YAML language-server bridge with diagnostics, completion, hover and definition tools. Fixed modern `triggers:` / `trigger:` completion, including indentless YAML lists.
 - Enabled pinned Prettier formatting for approved V2 YAML writes and connected V2 skill discovery to persistent, user-editable skill copies.
