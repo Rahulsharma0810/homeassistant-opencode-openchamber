@@ -533,7 +533,8 @@ connection.onCompletion(async (params) => {
       }
 
       // Platform completion for triggers
-      if (key === "platform" && context.parentKeys.includes("trigger")) {
+      if ((key === "platform" || key === "trigger") &&
+          context.parentKeys.some((parent) => parent === "trigger" || parent === "triggers")) {
         return getTriggerPlatformCompletions(CompletionItemKind);
       }
 
@@ -970,10 +971,11 @@ async function getTemplateHover(template) {
 // DIAGNOSTICS PROVIDER
 // ============================================================================
 
-async function validateDocument(document) {
+async function validateDocument(document, strict = false) {
   const diagnostics = [];
   
   if (!SUPERVISOR_TOKEN) {
+    if (strict) throw new Error("Home Assistant diagnostics require the supervised credential environment");
     // Can't validate without HA connection
     return diagnostics;
   }
@@ -1091,11 +1093,25 @@ async function validateDocument(document) {
     }
 
   } catch (error) {
+    if (strict) throw new Error("Home Assistant diagnostics are unavailable; check the LSP worker and Core connection");
     connection.console.error(`Validation error: ${error.message}`);
   }
 
   return diagnostics;
 }
+
+connection.onRequest("homeassistant/health", async () => {
+  const config = await haClient.fetch("/config");
+  return { authenticated: true, core_version: config.version };
+});
+connection.onRequest("textDocument/diagnostic", async (params) => {
+  const document = documents.get(params.textDocument.uri);
+  if (!document) throw new Error("LSP document is not open");
+  return { kind: "full", items: await validateDocument(document, true) };
+});
+// Each IPC connection owns one worker. Disconnect/cancellation must not leave
+// a credential-bearing language-server process behind.
+process.stdin.once("end", () => process.exit(0));
 
 // Debounce timers are per-document so editing one file doesn't cancel
 // pending validation of another

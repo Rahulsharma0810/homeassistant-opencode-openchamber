@@ -2,13 +2,14 @@ import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { once } from "node:events";
 import { createServer } from "node:http";
-import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, rm, writeFile, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { setTimeout as sleep } from "node:timers/promises";
 import { test } from "node:test";
 import { OpenCode } from "../rootfs/opt/opencode-v2-homeassistant/node_modules/@opencode/client/dist/promise/index.js";
+import { buildManagedConfig, READ_ONLY_AGENT_ID } from "../rootfs/opt/opencode-v2-homeassistant/managed-config.js";
 
 const runtime = fileURLToPath(new URL("../rootfs/opt/opencode-v2-homeassistant/", import.meta.url));
 const marker = "context-runtime-fixture-briefing";
@@ -26,13 +27,14 @@ test("pinned V2 sends managed context once on initial and tool-continuation HTTP
     const primary = tools.some((tool) => tool.function?.name === "fixture_read");
     if (primary) requests.push(body);
     const continuation = body.messages.some((message) => message.role === "tool");
-    const toolCall = primary && !continuation;
+    const lspBoundary = JSON.stringify(body.messages).includes("lsp-boundary-fixture");
+    const toolCall = (primary || lspBoundary) && !continuation;
     response.writeHead(200, { "Content-Type": "text/event-stream" });
     const chunk = (delta, finish_reason = null) => response.write(`data: ${JSON.stringify({
       id: "fixture-completion", object: "chat.completion.chunk", created: 1, model: "fixture-model",
       choices: [{ index: 0, delta, finish_reason }],
     })}\n\n`);
-    chunk({ role: "assistant", ...(toolCall ? { tool_calls: [{ index: 0, id: "call_fixture", type: "function", function: { name: "fixture_read", arguments: "{}" } }] } : { content: "Fixture complete" }) });
+    chunk({ role: "assistant", ...(toolCall ? { tool_calls: [{ index: 0, id: "call_fixture", type: "function", function: { name: lspBoundary ? "ha_yaml_status" : "fixture_read", arguments: "{}" } }] } : { content: "Fixture complete" }) });
     chunk({}, toolCall ? "tool_calls" : "stop");
     response.end("data: [DONE]\n\n");
   });
@@ -49,22 +51,29 @@ test("pinned V2 sends managed context once on initial and tool-continuation HTTP
     const briefing = join(root, "briefing.md");
     await writeFile(briefing, marker);
     await writeFile(join(root, "plugin/index.js"), `
+      import { appendFileSync } from "node:fs";
       import { Plugin } from ${JSON.stringify(pathToFileURL(join(runtime, "node_modules/@opencode/plugin/dist/promise/index.js")).href)};
       import { createContextSetup, readContextSource } from ${JSON.stringify(pathToFileURL(join(runtime, "context.js")).href)};
+      import { createLspSetup } from ${JSON.stringify(pathToFileURL(join(runtime, "lsp.js")).href)};
       export default Plugin.define({ id: "fixture.context", async setup(ctx) {
         const dispose = await createContextSetup({ readSource: () => readContextSource(${JSON.stringify(briefing)}) })(ctx);
         const tool = await ctx.tool.transform((editor) => editor.add({
           name: "fixture_read", description: "Read the synthetic fixture", input: { type: "object", properties: {} },
           options: { codemode: false }, execute: async () => ({ content: "fixture-tool-result" }),
         }));
-        return async () => { await dispose(); await tool.dispose(); };
+        const disposeLsp = await createLspSetup({ request: async () => {
+          appendFileSync(${JSON.stringify(join(root, "lsp-calls"))}, "x");
+          return { authenticated: true, core_version: "fixture" };
+        } })(ctx);
+        return async () => { await disposeLsp(); await dispose(); await tool.dispose(); };
       } });
     `);
     const config = join(root, "managed.json");
     await writeFile(config, JSON.stringify({
-      autoupdate: false, snapshots: false,
-      permissions: [{ action: "*", resource: "*", effect: "deny" }, { action: "fixture_read", resource: "*", effect: "allow" }],
+      autoupdate: false, snapshots: false, lsp: false,
+      permissions: [{ action: "*", resource: "*", effect: "deny" }, { action: "fixture_read", resource: "*", effect: "allow" }, { action: "lsp", resource: "*", effect: "allow" }],
       plugins: [{ package: join(root, "plugin"), options: { files: ["/data/context/home-briefing.md"] } }],
+      agents: buildManagedConfig().agents,
       providers: { fixture: {
         package: "@opencode/ai/providers/openai-compatible",
         settings: { baseURL: `http://127.0.0.1:${provider.address().port}/v1`, apiKey: "fixture-key" },
@@ -95,6 +104,7 @@ test("pinned V2 sends managed context once on initial and tool-continuation HTTP
     await client.session.prompt({ sessionID: session.id, text: "Read the synthetic fixture and finish." });
     await client.session.wait({ sessionID: session.id }, { signal: AbortSignal.timeout(15000) });
     assert.equal(requests.length, 2, `${logs}\n${JSON.stringify(await client.session.context({ sessionID: session.id }))}`);
+    assert.ok(requests[0].tools.some((tool) => tool.function?.name === "ha_yaml_status"), JSON.stringify(requests[0].tools.map((tool) => tool.function?.name)) + logs);
     await writeFile(briefing, `${marker}-updated`);
     await client.location.reload();
     await client.session.prompt({ sessionID: session.id, text: "Resume after context refresh." });
@@ -107,6 +117,14 @@ test("pinned V2 sends managed context once on initial and tool-continuation HTTP
       assert.doesNotMatch(body, /must-not-reach-model-context/);
     }
     assert.ok(requests[1].messages.some((message) => message.role === "tool" && JSON.stringify(message).includes("fixture-tool-result")));
+    const full = await client.session.create({ title: "LSP allowed", model: { providerID: "fixture", id: "fixture-model" } });
+    await client.session.prompt({ sessionID: full.id, text: "lsp-boundary-fixture" });
+    await client.session.wait({ sessionID: full.id }, { signal: AbortSignal.timeout(10000) });
+    assert.equal(await readFile(join(root, "lsp-calls"), "utf8"), "x", "LSP allow must reach the registered handler");
+    const readonly = await client.session.create({ title: "LSP denied", agent: READ_ONLY_AGENT_ID, model: { providerID: "fixture", id: "fixture-model" } });
+    await client.session.prompt({ sessionID: readonly.id, text: "lsp-boundary-fixture" });
+    await client.session.wait({ sessionID: readonly.id }, { signal: AbortSignal.timeout(10000) });
+    assert.equal(await readFile(join(root, "lsp-calls"), "utf8"), "x", "Read-only must reject an invented LSP call before dispatch");
   } finally {
     if (server && server.exitCode === null && server.signalCode === null) {
       const exited = once(server, "exit");

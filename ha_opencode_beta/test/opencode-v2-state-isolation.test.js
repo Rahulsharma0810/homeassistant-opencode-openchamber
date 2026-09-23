@@ -95,7 +95,7 @@ describe("OpenCode V2 state isolation", () => {
     assert.match(environment, /export XDG_CACHE_HOME="\$\{OPENCODE_V2_CACHE_HOME\}"/);
   });
 
-  it("prepares V2 roots before activation without replacing the V1 init environment", () => {
+  it("prepares V2 roots before activation independently of legacy data", () => {
     assert.match(init, /source \/usr\/local\/lib\/opencode\/v2-environment\.sh/);
     assert.match(init, /opencode_v2_prepare_directories/);
     assert.match(init, /export HOME="\/data"/);
@@ -125,10 +125,10 @@ describe("OpenCode V2 state isolation", () => {
     }
   });
 
-  it("runs the copy-on-write migration before V1 services are released", () => {
+  it("runs forward migration before credential-bearing background services", () => {
     assert.match(init, /opencode-v2-migrate\.py prepare/);
     assert.match(init, /--runtime-user opencode-v2/);
-    assert.match(init, /V2 remains inactive and existing state is preserved/);
+    assert.match(init, /server is unavailable and existing state is preserved/);
     assert.ok(
       init.indexOf("opencode-v2-migrate.py prepare") < init.indexOf("setsid node /usr/local/bin/discover-services.js"),
     );

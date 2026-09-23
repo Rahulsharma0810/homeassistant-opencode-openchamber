@@ -4,6 +4,7 @@ import { TOOL_PROFILES } from "../ha-mcp-server/lib/tool-profiles.js";
 export const DEFAULT_PLUGIN_PACKAGE = "file:///opt/opencode-v2-homeassistant/mcp-plugin";
 export const DEFAULT_RUNTIME_GUARD_PACKAGE = "file:///opt/opencode-v2-homeassistant/runtime-guard-plugin";
 export const DEFAULT_CONTEXT_PACKAGE = "file:///opt/opencode-v2-homeassistant/context-plugin";
+export const DEFAULT_LSP_PACKAGE = "file:///opt/opencode-v2-homeassistant/lsp-plugin";
 export const DEFAULT_MCP_ENDPOINT = "http://127.0.0.1:8765/mcp";
 export const DEFAULT_NATIVE_MCP_ENDPOINT = "http://127.0.0.1:8765/native-mcp";
 export const DEFAULT_WORKSPACE = "/homeassistant";
@@ -70,6 +71,7 @@ export function buildManagedConfig({
   homeBriefing = true,
   decisionNotes = true,
   userHooks = false,
+  lspEnabled = false,
 } = {}) {
   const permissions = [
     { action: "read", resource: "*", effect: "allow" },
@@ -89,6 +91,7 @@ export function buildManagedConfig({
       permissions.push({ action: "read", resource, effect: "deny" });
     }
   }
+  if (lspEnabled) permissions.push({ action: "lsp", resource: "*", effect: "allow" });
 
   const plugins = [
     { package: runtimeGuardPackage },
@@ -119,6 +122,7 @@ export function buildManagedConfig({
     `${workspace}/AGENTS.local.md`,
   ];
   plugins.push({ package: DEFAULT_CONTEXT_PACKAGE, options: { files: instructions } });
+  if (lspEnabled) plugins.push({ package: DEFAULT_LSP_PACKAGE });
 
   return {
     $schema: "https://opencode.ai/config.json",
@@ -127,9 +131,11 @@ export function buildManagedConfig({
     snapshots: false,
     permissions,
     watcher: { ignore: [...WATCHER_IGNORES] },
-    formatter: false,
+    formatter: {
+      "ha-yaml": { command: ["prettier", "--write", "$FILE"], extensions: [".yaml", ".yml"] },
+    },
     lsp: false,
-    skills: ["/opt/ha-mcp-server/skills"],
+    skills: ["/data/.config/opencode/skills"],
     agents: {
       [READ_ONLY_AGENT_ID]: {
         description: "Investigate and diagnose Home Assistant with no ability to change anything.",
@@ -182,6 +188,8 @@ export function parseArguments(argv) {
       options.decisionNotes = parseBoolean(value, name);
     } else if (name === "--user-hooks") {
       options.userHooks = parseBoolean(value, name);
+    } else if (name === "--lsp-enabled") {
+      options.lspEnabled = parseBoolean(value, name);
     } else {
       throw new TypeError(`Unknown managed-config option: ${name}`);
     }

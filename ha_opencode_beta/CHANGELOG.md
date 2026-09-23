@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+- Removed the V1 runtime and runtime selector. `opencode` and its `opencode2` compatibility spelling now use the same managed V2 server; status/API diagnostics cannot automatically start a separate daemon.
+- Added a credential-isolated Home Assistant YAML language-server bridge with diagnostics, completion, hover and definition tools. Fixed modern `triggers:` / `trigger:` completion, including indentless YAML lists.
+- Enabled pinned Prettier formatting for approved V2 YAML writes and connected V2 skill discovery to persistent, user-editable skill copies.
+- Replaced V1 read-only/configuration helpers with managed V2 clients. Successful forward upgrades now discard obsolete generations instead of retaining rollback state; unidentified state is preserved and reported rather than reset.
+- Replaced the V1 OpenChamber package with the independently pinned V2 web preview `2.0.0-preview.8`, built from immutable source and its lockfile. It attaches to the app-owned backend with process-private authentication; Ingress browser startup, shared history/policy and independent UI stop/start passed amd64 devcontainer acceptance.
+- Full preview streaming/provider/OAuth qualification, authenticated LAN access, native custom-provider/PPQ configuration and default-free-model read-only compatibility remain under development.
+
 ## 3.0.0b17
 
 - Fixed timed-out or cancelled CLI tools leaving subprocesses running; process-tree tests now check actual termination, including descendants that ignore graceful shutdown.

@@ -9,7 +9,9 @@
   },
   "dependencies": {
     "@opencode/cli": "2.0.13",
-    "@opencode/plugin": "2.0.13"
+    "@opencode/plugin": "2.0.13",
+    "prettier": "3.9.8",
+    "vscode-jsonrpc": "8.2.1"
   },
   "devDependencies": {
     "@opencode-ai/cli": "0.0.0-beta-18684"

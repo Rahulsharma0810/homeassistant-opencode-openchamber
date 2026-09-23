@@ -1588,16 +1588,9 @@ def remove_private_tree(path: Path) -> None:
     path.rmdir()
 
 
-def reconcile_private_state(root: Path, current: str | None) -> None:
+def reconcile_private_state(root: Path, current: str | None, *, prune_generations=False) -> None:
     work = root / "work"
     generations = root / "generations"
-    retained = {current}
-    if current:
-        previous = generation_result(root, current).get("previous_generation")
-        if previous is not None:
-            if not isinstance(previous, str) or not GENERATION_RE.fullmatch(previous):
-                raise MigrationError("invalid_generation_marker")
-            retained.add(previous)
     for entry in work.iterdir():
         if entry.name == ".migration.lock":
             continue
@@ -1611,11 +1604,36 @@ def reconcile_private_state(root: Path, current: str | None) -> None:
             raise MigrationError("unexpected_migration_work")
         remove_private_tree(entry)
     for entry in generations.iterdir():
-        if entry.name in retained:
+        if entry.name == current:
             continue
         if not GENERATION_RE.fullmatch(entry.name):
             raise MigrationError("unexpected_generation")
-        remove_private_tree(entry)
+        if prune_generations:
+            # Only discard identified app-owned generations after the active
+            # database has been validated. Stage deletion in work so a crash
+            # midway through removal is reconciled on the next boot.
+            ensure_plain_directory(entry)
+            generation_result(root, entry.name)
+            database = entry / "data" / "opencode" / "opencode.db"
+            if source_database_is_open(database):
+                raise MigrationError("obsolete_generation_in_use")
+            discarded = work / entry.name
+            os.rename(entry, discarded)
+            fsync_directory(generations)
+            fsync_directory(work)
+            remove_private_tree(discarded)
+            fsync_directory(work)
+
+
+def finalize_generation(root: Path, current: str, result: dict) -> None:
+    obsolete = any(entry.name != current for entry in (root / "generations").iterdir())
+    if obsolete:
+        validate_database(root / "generations" / current / "data" / "opencode" / "opencode.db")
+    if "previous_generation" in result:
+        result.pop("previous_generation")
+        atomic_json(root / "generations" / current / "generation.json", {**result, "status": "validated"})
+    reconcile_private_state(root, current, prune_generations=True)
+    atomic_json(root / "migration.json", result)
 
 
 def generation_result(root: Path, generation: str, target_version: str | None = None) -> dict:
@@ -1753,7 +1771,7 @@ def upgrade_generation(root: Path, current: str, prior: dict, args: argparse.Nam
         remove_private_tree(candidate / "cache")
         validated = {
             **prior, "status": "validated", "generation": generation,
-            "target_version": args.target_version, "previous_generation": current,
+            "target_version": args.target_version,
             "upgraded_from_version": prior["target_version"],
             "target": {
                 "session_count": table_count(target, "session_v2", required=True),
@@ -1761,12 +1779,13 @@ def upgrade_generation(root: Path, current: str, prior: dict, args: argparse.Nam
                 "provider_auth_count": table_count(target, "credential", required=True),
             },
         }
+        validated.pop("previous_generation", None)
         atomic_json(candidate / "generation.json", validated)
         fsync_tree(candidate)
         os.replace(candidate, activated)
         fsync_directory(root / "generations")
         atomic_text(root / "current", generation + "\n")
-        atomic_json(root / "migration.json", {**validated, "status": "activated"})
+        finalize_generation(root, generation, {**validated, "status": "activated"})
         return {"status": "upgraded", "generation": generation}
     except Exception:
         remove_private_tree(candidate)
@@ -1816,13 +1835,15 @@ def prepare(args: argparse.Namespace) -> dict:
     journal = root / "migration.json"
     with migration_lock(work / ".migration.lock"):
         current = load_current(root)
+        if current is None and any(generations.iterdir()):
+            raise MigrationError("generations_present_without_current")
         reconcile_private_state(root, current)
         if current:
             result = generation_result(root, current)
             if result.get("target_version") != args.target_version:
                 return upgrade_generation(root, current, result, args)
             prepare_generation_ownership(generations / current, args.runtime_user)
-            atomic_json(journal, result)
+            finalize_generation(root, current, result)
             return {"status": "already_activated", "generation": current}
 
         generation = uuid.uuid4().hex

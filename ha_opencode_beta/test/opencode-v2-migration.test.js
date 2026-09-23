@@ -335,17 +335,15 @@ describe("OpenCode V2 copy-on-write migration", () => {
     const source = join(sandbox, "fresh-source");
     const root = join(sandbox, "v2");
     const orphanWork = "0".repeat(32);
-    const orphanGeneration = "1".repeat(32);
     const staleProbe = ".runtime-probe.deadbeef";
     await mkdir(source, { recursive: true });
     await Promise.all([
       mkdir(join(root, "work", orphanWork), { recursive: true }),
       mkdir(join(root, "work", staleProbe), { recursive: true }),
-      mkdir(join(root, "generations", orphanGeneration), { recursive: true }),
+      mkdir(join(root, "generations"), { recursive: true }),
     ]);
     await writeFile(join(root, "work", orphanWork, "credential-copy"), AUTH_SECRET);
     await writeFile(join(root, "work", staleProbe, "probe-copy"), AUTH_SECRET);
-    await writeFile(join(root, "generations", orphanGeneration, "database-copy"), AUTH_SECRET);
     const args = [
       "prepare",
       "--root",
@@ -427,7 +425,20 @@ describe("OpenCode V2 copy-on-write migration", () => {
     assert.deepEqual(await readdir(join(root, "generations")), [current]);
   });
 
-  it("upgrades an actual earlier beta generation, preserving V2 sign-ins and rollback state", async () => {
+  it("does not replace unidentified existing generations with a fresh empty installation", async () => {
+    const root = join(sandbox, "missing-current");
+    const existing = join(root, "generations", "1".repeat(32));
+    await mkdir(existing, { recursive: true });
+    await writeFile(join(existing, "database-copy"), AUTH_SECRET);
+    const result = runMigrator(python, ["prepare", "--root", root, "--source-data", join(sandbox, "no-source"),
+      "--v2-bin", V2_BIN, "--target-version", TARGET_VERSION]);
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /generations_present_without_current/);
+    assert.equal(await readFile(join(existing, "database-copy"), "utf8"), AUTH_SECRET);
+    await assert.rejects(readFile(join(root, "current")), { code: "ENOENT" });
+  });
+
+  it("preserves failed-upgrade input and keeps only validated active state after a successful forward upgrade", async () => {
     const root = join(sandbox, "upgrade-v2");
     const source = join(sandbox, "upgrade-v1");
     await mkdir(source);
@@ -462,6 +473,7 @@ describe("OpenCode V2 copy-on-write migration", () => {
     assert.match(failed.stderr, /missing_v2_runtime/);
     assert.equal((await readFile(join(root, "current"), "utf8")).trim(), previous);
     assert.equal(hash(await readFile(database)), before);
+    assert.equal(await readFile(join(previousRoot, "generation.json"), "utf8"), markerBefore);
 
     const upgraded = runMigrator(python, args);
     assert.equal(upgraded.status, 0, upgraded.stderr);
@@ -473,18 +485,16 @@ describe("OpenCode V2 copy-on-write migration", () => {
     assert.equal(sqliteTableCounts(python, join(current, "data", "opencode", "opencode.db")).credential, 1);
     assert.equal(sqliteTableCounts(python, join(current, "data", "opencode", "opencode.db")).session_message, 1);
     assert.equal(await readFile(join(current, "state", "retained-state"), "utf8"), "keep me");
-    assert.equal(hash(await readFile(database)), before);
-    assert.equal(await readFile(join(previousRoot, "generation.json"), "utf8"), markerBefore);
+    await assert.rejects(readFile(database), { code: "ENOENT" });
     assert.equal(await readFile(join(source, "auth.json"), "utf8"), AUTH_SECRET);
     const marker = JSON.parse(await readFile(join(current, "generation.json"), "utf8"));
-    assert.equal(marker.previous_generation, previous);
+    assert.equal(marker.previous_generation, undefined);
     assert.equal(marker.target_version, TARGET_VERSION);
 
     const restarted = runMigrator(python, args);
     assert.equal(restarted.status, 0, restarted.stderr);
     assert.equal(JSON.parse(restarted.stdout).generation, result.generation);
-    assert.equal(hash(await readFile(database)), before);
-    assert.equal((await readdir(join(root, "generations"))).length, 2);
+    assert.deepEqual(await readdir(join(root, "generations")), [result.generation]);
     const downgrade = runMigrator(python, previousArgs);
     assert.equal(downgrade.status, 1);
     assert.match(downgrade.stderr, /target_version_mismatch/);

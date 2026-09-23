@@ -177,7 +177,7 @@ int main(int argc, char **argv) {
   char port_text[6];
   snprintf(port_text, sizeof(port_text), "%ld", port);
   char *child_argv[] = {
-      "/usr/local/bin/opencode2", "serve",      "--hostname",
+      "/usr/local/libexec/opencode-v2", "serve", "--hostname",
       "127.0.0.1",                  "--port",     port_text,
       "--print-logs",               "--log-level", "info",
       NULL,

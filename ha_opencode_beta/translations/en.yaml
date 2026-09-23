@@ -10,12 +10,9 @@
 #   - Two sentences where possible, three at most.
 #   - No restart instructions (every option needs one) and no changelog voice.
 configuration:
-  terminal_runtime:
-    name: "OpenCode runtime"
-    description: "Choose V2 for the new terminal runtime, or V1 for the previous runtime with terminal and OpenChamber support. V2 currently supports the terminal interface only."
   interface_mode:
-    name: "Interface (V1 only)"
-    description: "Choose the classic terminal or OpenChamber when OpenCode runtime is V1. V2 always serves the terminal and keeps this preference for the next time V1 is selected."
+    name: "Interface"
+    description: "Choose the terminal or pinned OpenChamber V2 web preview. Both use the same managed V2 backend and session history."
 
   terminal_theme:
     name: "Terminal theme"
@@ -91,15 +88,15 @@ configuration:
 
   enable_server:
     name: "OpenCode LAN server"
-    description: "Starts an OpenCode server on internal port 4096 so other computers can attach to this session with the OpenCode CLI. To reach it, also map 4096/tcp in the Network section below. Use this on trusted networks only, and never expose it to the internet."
+    description: "Authenticated V2 LAN access is under development. This saved option does not currently open port 4096; use Home Assistant Ingress."
 
   cors_origins:
     name: "LAN server CORS origins"
-    description: "Applies only when the LAN server above is on, and only to browser-based clients such as a web or VS Code UI — 'opencode attach' does not need it. Each entry is an exact origin: scheme, host, and port, with no path, for example 'http://192.168.1.20:8080'. Without a matching entry a browser client may list providers and models but never receive replies."
+    description: "Reserved for authenticated V2 LAN browser clients. Saved origins are inactive while V2 LAN access is under development."
 
   ppq_private_enabled:
     name: "PPQ private TEE models (beta)"
-    description: "Requires the PPQ API key below. Starts an internal PPQ private-mode encryption proxy and adds it to OpenCode as a provider for TEE-backed models; the proxy binds to 127.0.0.1 inside the container and is not reachable from your network."
+    description: "Requires the PPQ API key below and starts an internal encryption proxy. Native V2 provider wiring is pending; enabling this proxy alone does not route OpenCode requests through a private model."
 
   ppq_api_key:
     name: "PPQ API key"
@@ -119,7 +116,7 @@ configuration:
 
   enable_openchamber_lan:
     name: "OpenChamber LAN web UI"
-    description: "Requires OpenCode runtime V1 and Interface (V1 only) set to 'openchamber'. Publishes the OpenChamber web UI on internal port 4097; also map 4097/tcp in Network settings. There is no Home Assistant login in front of this port, so use it only behind trusted-network access control."
+    description: "Authenticated OpenChamber V2 LAN access is under development. This saved option does not currently open port 4097; use Home Assistant Ingress."
 
   env_vars:
     name: "Environment variables"
@@ -127,7 +124,7 @@ configuration:
 
   opencode_config:
     name: "Custom OpenCode configuration"
-    description: "A JSON object merged into OpenCode's own configuration, for providers, keybindings, permission rules and similar. Leave empty for the defaults; the full schema is at https://opencode.ai/docs/config."
+    description: "Native V2 custom-configuration validation is under development. Saved values are preserved but currently reported as unapplied; managed app policy remains active."
 
   user_hooks_enabled:
     name: "Startup hooks (beta)"

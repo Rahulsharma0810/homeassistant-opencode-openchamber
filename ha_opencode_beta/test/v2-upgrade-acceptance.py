@@ -61,10 +61,9 @@ elif mode == "verify":
     expected = json.loads(evidence.read_text())
     assert generation != expected["generation"]
     previous = root / "generations" / expected["generation"]
-    assert digest(previous / "data" / "opencode" / "opencode.db") == expected["database_hash"]
-    assert digest(previous / "generation.json") == expected["marker_hash"]
+    assert not previous.exists()
     marker = json.loads((directory / "generation.json").read_text())
-    assert marker["previous_generation"] == expected["generation"]
+    assert "previous_generation" not in marker
     assert marker["target_version"] == "2.0.13"
     connection = sqlite3.connect(database.resolve().as_uri() + "?mode=ro", uri=True)
     try:
@@ -76,6 +75,6 @@ elif mode == "verify":
         assert json.loads(permission) == [{"action": "shell", "resource": "*", "effect": "deny"}]
     finally:
         connection.close()
-    print("Verified upgraded conversation, credential, session restriction, and byte-identical recovery generation")
+    print("Verified upgraded conversation, credential, session restriction, and removal of obsolete generations")
 else:
     raise SystemExit("Expected seed or verify")
