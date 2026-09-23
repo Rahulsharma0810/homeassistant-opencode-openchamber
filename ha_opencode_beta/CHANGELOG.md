@@ -4,7 +4,7 @@
 
 ## 3.0.0b20
 
-- Fixed CI's isolated editor-test dependency setup and a process-exit race in cancellation verification.
+- Fixed CI's isolated editor-test dependencies, channel-specific proxy parity checks and a process-exit race in cancellation verification.
 - Request the pinned OpenChamber source over HTTP/1.1 during image builds, retaining revision and TLS verification.
 - Added CI gates for editor lifecycle/type checks and the native provider-credential loader instead of silently skipping those boundaries.
 - Added bounded Home Assistant YAML diagnostics and completion for editable OpenChamber drafts through Ingress, with stale-result cancellation and no new file-write operations.
