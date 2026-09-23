@@ -2,7 +2,8 @@
 """Opt-in preview lifecycle test in the official HA Apps devcontainer.
 
 Temporarily selects OpenChamber, checks its real backend and UI lifecycle, then
-restores the original interface. No model/provider or HA device calls are made.
+restores the original interface. No HA device calls are made. Set the additional
+HA_OPENCHAMBER_MODEL_ACCEPTANCE=1 to send one real free-model prompt through the UI.
 """
 import json
 import os
@@ -116,7 +117,8 @@ with urllib.request.urlopen(req, timeout=10) as response:
     print(json.load(response)["data"]["session"])
 ''').strip()
     browser = subprocess.run(["docker", "exec", "-i", APP, "node", "/local_apps/opencode/scripts/devcontainer-openchamber-browser.mjs"],
-                             input=json.dumps({"entry": entry, "session": session}), capture_output=True, text=True, timeout=70)
+                             input=json.dumps({"entry": entry, "session": session, "livePrompt": os.environ.get("HA_OPENCHAMBER_MODEL_ACCEPTANCE") == "1"}),
+                             capture_output=True, text=True, timeout=140)
     assert browser.returncode == 0, "Preview browser acceptance failed; inspect its bounded browser assertions"
     print(browser.stdout.strip())
     app("opencode-smoke-test", "--quiet")

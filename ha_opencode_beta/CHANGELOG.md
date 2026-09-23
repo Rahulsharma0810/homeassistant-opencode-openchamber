@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+- Fixed OpenChamber session creation and other JSON POST requests failing with HTTP 400 through Home Assistant Ingress. The preview now removes incoming chunked framing before forwarding a re-encoded fixed-length body, including empty JSON objects.
+- Added actual-preview HTTP framing regression coverage and real Core Ingress session creation/read/delete checks, with an opt-in first-message/free-model browser scenario.
+
 ## 3.0.0b18
 
 - Removed the V1 runtime and runtime selector. `opencode` and its `opencode2` compatibility spelling now use the same managed V2 server; status/API diagnostics cannot automatically start a separate daemon.

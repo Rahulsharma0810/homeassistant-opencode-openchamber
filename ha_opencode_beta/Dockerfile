@@ -34,6 +34,8 @@ RUN rm -rf node_modules packages/*/node_modules \
         --filter @openchamber/web --filter @openchamber/sdk
 RUN node -e 'require("./packages/web/node_modules/node-pty").spawn("/bin/true", []).onExit(e => process.exit(e.exitCode))' \
     && node --input-type=module -e 'await import("./packages/web/server/index.js"); process.exit(0)'
+RUN --mount=type=bind,source=test/openchamber-request-body.mjs,target=/tmp/openchamber-request-body.mjs,readonly \
+    node --test /tmp/openchamber-request-body.mjs
 
 ## Build hab CLI from source (pinned release)
 # Pinned to the build host's platform — Go cross-compiles via GOARCH below,
