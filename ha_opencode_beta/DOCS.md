@@ -23,6 +23,7 @@ at `/usr/share/doc/ha-opencode/NOTICE` and in this repository's
 
 ## Current Beta Changes
 
+- **OpenChamber session creation fix**: Beta `3.0.0b19` fixes HTTP 400 errors when creating sessions or sending JSON requests through Home Assistant Ingress. A first message and free-model reply have been verified through the actual browser UI and Core Ingress.
 - **Official V2 runtime**: Beta `3.0.0b16` pins the CLI and plugin to OpenCode `2.0.13` using the official `@opencode` packages.
 - **Forward state upgrades**: Earlier V2 data upgrades through a validated private copy, preserving conversations, sign-ins and permissions. Successful upgrades remove obsolete generations; failed conversion preserves its input and reports an error. There is no application runtime fallback or rollback selector.
 - **V2-only runtime**: Beta `3.0.0b18` runs one pinned OpenCode V2 server. V1 and the runtime selector have been removed. The server runs as root for Home Assistant filesystem compatibility; its attached terminal runs as UID `60001`.
@@ -44,7 +45,7 @@ at `/usr/share/doc/ha-opencode/NOTICE` and in this repository's
 - **Touch scrolling**: One-finger vertical drag gestures inside the terminal now scroll full-screen apps such as OpenCode on phones and tablets.
 - **Certified OpenCode runtime**: The app ships one pinned V2 build. Runtime upgrades arrive through app images. See [OpenCode Updates](#opencode-updates).
 - **Home Assistant skills**: The detailed procedures — YAML work, troubleshooting, dashboards, Zigbee/ESPHome, development — now ship as OpenCode skills that are loaded only when the task needs them, instead of being pushed into every request. `AGENTS.md` keeps the consent and safety rules, which are always in force. See [Home Assistant Skills](#home-assistant-skills).
-- **Read-only session**: Run `ha-readonly` for a session that can inspect and diagnose your installation but cannot change it — no file edits, no shell, no service calls, no configuration writes. Your normal OpenCode session is unchanged. Requires `interface_mode: terminal`. See [Read-Only Session](#read-only-session).
+- **Read-only session**: Run `ha-readonly` for a session that can inspect and diagnose your installation but cannot change it — no file edits, no shell, no service calls, no configuration writes. Requires a provider/model that accepts the custom read-only agent; the default free-tier model rejects it. See [Read-Only Session](#read-only-session).
 - **Sensitive file protection**: New **Restrict access to sensitive files** option (default on) denies the AI read access to `secrets.yaml`, `.storage/`, `.cloud/`, `ssl/`, and `*.key`/`*.pem` files so their contents can't reach the model. Set it to `false` to restore fully unrestricted file access. See [Sensitive File Protection](#sensitive-file-protection).
 - **Focus-friendly responses**: Optional action-first, concise, progress-aware response guidance for users who find long or unstructured responses difficult to act on. Disabled by default and available in both terminal and OpenChamber modes.
 - **Provider sign-in**: Real provider/OAuth flows in the new V2 preview still need qualification. See [Connecting a provider with browser sign-in](#connecting-a-provider-with-browser-sign-in).
@@ -177,8 +178,20 @@ The native agent policy:
 
 The session uses the managed server's V2 data and provider connections; choose
 its model normally. `ha-readonly --print-config` prints the native agent policy.
-The default free model currently rejects this custom agent; provider compatibility
-is still under investigation. Other sessions retain their own agents and policy.
+Other sessions retain their own agents and policy.
+
+### Free-tier model compatibility
+
+Normal **Build** sessions work with the tested free model, `opencode/big-pickle`.
+The same model rejects the custom `home-assistant-read-only` agent with:
+
+> OpenCode's free tier can only be used from within OpenCode
+
+This response comes from the free-tier provider, even though the app is running
+OpenCode. We treat it as an accepted provider compatibility restriction, rather
+than an app defect requiring a workaround. For read-only investigations, select
+a provider/model that accepts custom agents. The read-only permissions remain
+in force; normal Build chat does not require a fix for this restriction.
 
 ## MCP Tool Profiles
 

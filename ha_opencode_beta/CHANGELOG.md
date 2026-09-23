@@ -2,8 +2,11 @@
 
 ## [Unreleased]
 
+## 3.0.0b19
+
 - Fixed OpenChamber session creation and other JSON POST requests failing with HTTP 400 through Home Assistant Ingress. The preview now removes incoming chunked framing before forwarding a re-encoded fixed-length body, including empty JSON objects.
-- Added actual-preview HTTP framing regression coverage and real Core Ingress session creation/read/delete checks, with an opt-in first-message/free-model browser scenario.
+- Added actual-preview HTTP framing regression coverage and real Core Ingress session creation/read/delete checks. Verified a first message and real free-model reply through the OpenChamber UI; the browser scenario remains opt-in for repeat testing.
+- Documented verified free-model Build chat and the free-tier provider's rejection of the custom read-only agent as an accepted compatibility limitation.
 
 ## 3.0.0b18
 
