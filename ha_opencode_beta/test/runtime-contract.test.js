@@ -200,7 +200,8 @@ describe(`${CHANNEL} runtime pin`, () => {
     assert.doesNotMatch(session, /TERMINAL_RUNTIME|V1/);
     assert.match(session, /exec \/usr\/local\/bin\/opencode-v2-session/);
     assert.match(v2Session, /Current TUI: OpenCode V2 \$\{V2_VERSION\}/);
-    assert.doesNotMatch(v2Session, /V1|rollback/);
+    // The failure screen may explain V1 migration; it must not select a V1 runtime.
+    assert.doesNotMatch(v2Session, /TERMINAL_RUNTIME|rollback|exec .*opencode-v1/);
     assert.match(v2Session, /TUI runs as uid 60001; the V2 server runs as root/);
     assert.match(v2Session, /exec \/usr\/local\/bin\/opencode-v2-tui-launch \/run\/opencode-v2/);
   });
