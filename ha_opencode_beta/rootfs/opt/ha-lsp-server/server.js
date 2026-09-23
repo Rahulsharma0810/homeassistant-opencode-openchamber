@@ -26,9 +26,9 @@
 import lsp from "vscode-languageserver/node.js";
 import { TextDocument } from "vscode-languageserver-textdocument";
 import yaml from "yaml";
-import { fileURLToPath } from "url";
-import { dirname, join, resolve, isAbsolute } from "path";
-import { existsSync, readFileSync } from "fs";
+import { fileURLToPath, pathToFileURL } from "url";
+import { dirname, resolve } from "path";
+import { readFileSync } from "fs";
 
 // Destructure from CommonJS default export
 const {
@@ -45,6 +45,7 @@ const { parse: parseYaml } = yaml;
 
 // Extracted pure-function modules (testable in isolation)
 import { YamlContextAnalyzer } from "./lib/yaml-analyzer.js";
+import { inspectInclude } from "./lib/include-policy.js";
 import {
   getTriggerPlatformCompletions,
   getConditionTypeCompletions,
@@ -1016,21 +1017,18 @@ async function validateDocument(document, strict = false) {
 
     // Validate !include paths
     const includeRefs = yamlAnalyzer.findIncludeReferences(document);
-    const docPath = fileURLToPath(document.uri);
-    const docDir = dirname(docPath);
     
     for (const ref of includeRefs) {
-      const includePath = isAbsolute(ref.path) 
-        ? ref.path 
-        : resolve(docDir, ref.path);
-      
-      if (!existsSync(includePath)) {
+      const include = inspectInclude(document.uri, ref.path);
+      if (include.status !== "exists") {
         diagnostics.push({
           severity: DiagnosticSeverity.Error,
           range: ref.range,
-          message: `Include file not found: ${ref.path}`,
+          message: include.status === "blocked"
+            ? "Include target is outside the permitted workspace or is sensitive/symlinked"
+            : `Include file not found: ${ref.path}`,
           source: "ha-lsp",
-          code: "include-not-found",
+          code: include.status === "blocked" ? "include-blocked" : "include-not-found",
         });
       }
     }
@@ -1151,21 +1149,15 @@ connection.onDefinition(async (params) => {
   const position = params.position;
   const text = document.getText();
   const lineText = text.split("\n")[position.line];
+  if (typeof lineText !== "string") return null;
   
   // Check for !include
   const includeMatch = lineText.match(/!include\s+([^\s\n]+)/);
   if (includeMatch) {
-    const includePath = includeMatch[1];
-    const docPath = fileURLToPath(document.uri);
-    const docDir = dirname(docPath);
-    
-    const resolvedPath = isAbsolute(includePath) 
-      ? includePath 
-      : resolve(docDir, includePath);
-    
-    if (existsSync(resolvedPath)) {
+    const include = inspectInclude(document.uri, includeMatch[1]);
+    if (include.status === "exists") {
       return {
-        uri: `file://${resolvedPath}`,
+        uri: pathToFileURL(include.path).href,
         range: {
           start: { line: 0, character: 0 },
           end: { line: 0, character: 0 },
@@ -1174,33 +1166,7 @@ connection.onDefinition(async (params) => {
     }
   }
 
-  // Check for !secret
-  const secretMatch = lineText.match(/!secret\s+(\w+)/);
-  if (secretMatch) {
-    const secretName = secretMatch[1];
-    const docPath = fileURLToPath(document.uri);
-    const docDir = dirname(docPath);
-    
-    // Look for secrets.yaml in the same directory or parent
-    const possiblePaths = [
-      resolve(docDir, "secrets.yaml"),
-      resolve(docDir, "..", "secrets.yaml"),
-      "/homeassistant/secrets.yaml",
-    ];
-    
-    for (const secretsPath of possiblePaths) {
-      if (existsSync(secretsPath)) {
-        // TODO: Parse secrets.yaml to find the exact line
-        return {
-          uri: `file://${secretsPath}`,
-          range: {
-            start: { line: 0, character: 0 },
-            end: { line: 0, character: 0 },
-          },
-        };
-      }
-    }
-  }
+  // !secret values and locations are deliberately never inspected or returned.
 
   return null;
 });

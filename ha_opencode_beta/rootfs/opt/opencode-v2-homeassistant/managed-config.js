@@ -1,5 +1,7 @@
 import { pathToFileURL } from "node:url";
+import { readFileSync, writeFileSync } from "node:fs";
 import { TOOL_PROFILES } from "../ha-mcp-server/lib/tool-profiles.js";
+import { prepareUserConfig } from "./user-config.js";
 
 export const DEFAULT_PLUGIN_PACKAGE = "file:///opt/opencode-v2-homeassistant/mcp-plugin";
 export const DEFAULT_RUNTIME_GUARD_PACKAGE = "file:///opt/opencode-v2-homeassistant/runtime-guard-plugin";
@@ -160,7 +162,11 @@ export function parseArguments(argv) {
     const name = argv[index];
     const value = argv[index + 1];
     if (value === undefined) throw new TypeError(`${name} requires a value`);
-    if (name === "--restrict-sensitive-files") {
+    if (name === "--options-file") {
+      options.optionsFile = value;
+    } else if (name === "--environment-output") {
+      options.environmentOutput = value;
+    } else if (name === "--restrict-sensitive-files") {
       options.restrictSensitiveFiles = parseBoolean(value, name);
     } else if (name === "--plugin-enabled") {
       options.pluginEnabled = parseBoolean(value, name);
@@ -199,7 +205,24 @@ export function parseArguments(argv) {
 
 if (process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url) {
   try {
-    process.stdout.write(`${JSON.stringify(buildManagedConfig(parseArguments(process.argv.slice(2))), null, 2)}\n`);
+    const args = parseArguments(process.argv.slice(2));
+    const managed = buildManagedConfig(args);
+    if (args.optionsFile) {
+      if (!args.environmentOutput) throw new TypeError("--options-file requires --environment-output");
+      let options;
+      try { options = JSON.parse(readFileSync(args.optionsFile, "utf8")); }
+      catch { throw new TypeError("Cannot read add-on options as JSON; no custom configuration was applied"); }
+      const { config, providerEnvironment } = prepareUserConfig(options, {
+        warn: (message) => process.stderr.write(`${message}\n`),
+      });
+      // Only the validated allowlist can override defaults. No policy fields
+      // survive validation, so managed plugins/read-only rules remain mandatory.
+      Object.assign(managed, config);
+      writeFileSync(args.environmentOutput, providerEnvironment, { mode: 0o600 });
+    } else if (args.environmentOutput) {
+      throw new TypeError("--environment-output requires --options-file");
+    }
+    process.stdout.write(`${JSON.stringify(managed, null, 2)}\n`);
   } catch (error) {
     process.stderr.write(`${error?.message ?? error}\n`);
     process.exitCode = 1;

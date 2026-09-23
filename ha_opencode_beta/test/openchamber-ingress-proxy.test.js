@@ -646,12 +646,35 @@ describe("openchamber ingress proxy: disconnected clients", () => {
 });
 
 describe("openchamber ingress proxy: release parity", () => {
-  it("ships the tested proxy implementation in both channels", () => {
+  it("keeps shared forwarding identical apart from explicit channel-only routes", () => {
     // The stable-only terminal quit route relies on V1's graceful SIGHUP path.
     // Provider OAuth and all remaining shared proxy behavior must stay identical.
     const stable = fs.readFileSync(STABLE_PROXY_SCRIPT, "utf8")
       .replace('const { routeTerminalControl } = require("./terminal-control.js");\n', "")
       .replace('  if (routeTerminalControl(req, res, { ingressPath, upstreamPath, terminal: TERMINAL, lan: ALLOW_ANY_REMOTE })) return;\n', "");
-    assert.equal(fs.readFileSync(PROXY_SCRIPT, "utf8"), stable);
+    // Beta's editor boundary is intentionally absent from V1 stable. Permit only
+    // these exact additions; do not normalize whole forwarding functions and
+    // accidentally conceal OAuth, streaming or request-framing drift.
+    const editorImport = 'const { validEditorIngressOrigin } = require("./editor-ingress-origin.js");\n';
+    const editorGuard = `  const editorRequest = /^\\/api\\/ha-editor-lsp\\/(?:diagnostics|completions)$/.test(upstreamPath.split("?", 1)[0]);
+  if (editorRequest && (!isAllowedRemote(remoteAddress) ||
+      !validEditorIngressOrigin(req.headers, ingressPath, ALLOW_ANY_REMOTE))) {
+    res.writeHead(403, noStoreHeaders({ "content-type": "application/json" }));
+    res.end(JSON.stringify({ error: "Editor language service request denied" }));
+    return;
+  }
+`;
+    const editorNormalization = `  // TLS terminates before the app. Having checked the original browser authority
+  // at the trusted Ingress boundary, normalize this read-only route's Origin to
+  // the internal hop. The backend keeps its strict same-origin/auth checks and
+  // never has to trust caller-supplied X-Forwarded-* claims or a bypass header.
+  if (editorRequest) headers.origin = \`http://\${headers.host}\`;
+`;
+    let beta = fs.readFileSync(PROXY_SCRIPT, "utf8");
+    for (const addition of [editorImport, editorGuard, editorNormalization]) {
+      assert.equal(beta.split(addition).length, 2, "Expected exactly one reviewed beta-only editor addition");
+      beta = beta.replace(addition, "");
+    }
+    assert.equal(beta, stable);
   });
 });

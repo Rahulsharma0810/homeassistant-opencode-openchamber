@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+## 3.0.0b20
+
+- Request the pinned OpenChamber source over HTTP/1.1 during image builds, retaining revision and TLS verification.
+- Added CI gates for editor lifecycle/type checks and the native provider-credential loader instead of silently skipping those boundaries.
+- Added bounded Home Assistant YAML diagnostics and completion for editable OpenChamber drafts through Ingress, with stale-result cancellation and no new file-write operations.
+- Added validated native custom-provider configuration and PPQ model routing, with filtered API-key environment support and explicit unsupported-setting errors.
+- Clarified that desktop-browser tools need an OpenCode desktop attachment, separate from OpenChamber Ingress and HA screenshot support.
+- Confined YAML include diagnostics and definition lookups to non-sensitive, non-symlinked Home Assistant paths; secret-file locations are no longer probed.
+- Removed unused beta-only V1 permission helpers and standalone smoke probes; retained the managed V2 checks and all user data.
+- Corrected OpenChamber's OpenCode update notice in all 12 locales to direct users to Home Assistant app updates without implying that an upstream release is an available app update.
+- Documented Supervisor-only component updates as the 3.0 release policy, without adding a custom updater.
+- Verified rendered editor completion/diagnostic refresh and update-notice dismissal through real Home Assistant Ingress on amd64. Authenticated LAN access, full provider compatibility, ARM/HAOS runtime qualification and the stopped-worker acceptance harness remain open.
+
 ## 3.0.0b19
 
 - Fixed OpenChamber session creation and other JSON POST requests failing with HTTP 400 through Home Assistant Ingress. The preview now removes incoming chunked framing before forwarding a re-encoded fixed-length body, including empty JSON objects.

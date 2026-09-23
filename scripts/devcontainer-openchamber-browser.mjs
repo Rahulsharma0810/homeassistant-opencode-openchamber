@@ -2,11 +2,13 @@
 // arrive over stdin, never via command arguments, environment or output.
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
+import { checkManagedUpdateNotice } from "./devcontainer-openchamber-update-notice.mjs";
+import { checkEditorLsp } from "./devcontainer-openchamber-editor-lsp.mjs";
 const require = createRequire("/opt/ha-mcp-server/package.json");
 const puppeteer = require("puppeteer-core");
 let input = "";
 for await (const chunk of process.stdin) input += chunk;
-const { entry, session, livePrompt = false } = JSON.parse(input);
+const { entry, session, livePrompt = false, editorLspMode = null, editorLspArtifactDirectory } = JSON.parse(input);
 assert.match(entry, /^\/api\/hassio_ingress\/[^/]+\/?$/);
 const base = entry.replace(/\/$/, "") + "/";
 const browser = await puppeteer.launch({ executablePath: "/usr/bin/chromium", args: ["--no-sandbox", "--disable-dev-shm-usage"] });
@@ -57,6 +59,14 @@ try {
   assert.equal(creation.status, 200, "Session creation POST must traverse Core Ingress");
   assert.equal(creation.created, true, "Created session must be readable through Ingress");
   console.log("PASS: Chromium loaded the preview and created/read/deleted a session through Core Ingress");
+
+  console.log("CHECK: managed update notice");
+  await checkManagedUpdateNotice({ browser, page, base, session });
+
+  if (editorLspMode) {
+    console.log("CHECK: rendered editor LSP");
+    await checkEditorLsp({ browser, page, base, session, mode: editorLspMode, artifactDirectory: editorLspArtifactDirectory });
+  }
 
   if (livePrompt) {
     // Separately opt in to a real free-model call. Abort before dispatch if a

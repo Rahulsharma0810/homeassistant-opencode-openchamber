@@ -111,6 +111,20 @@ describe(`${CHANNEL} runtime pin`, () => {
     assert.match(dockerfile, /test ! -e \/usr\/local\/lib\/node_modules\/opencode-ai/);
   });
 
+  it("does not ship superseded V1 permission helpers or standalone smoke probes", () => {
+    for (const obsolete of [
+      "opt/ha-mcp-server/headless-permissions.mjs",
+      "opt/ha-mcp-server/lib/headless-permissions.js",
+      "opt/ha-mcp-server/test/headless-permissions.test.js",
+      "usr/local/bin/opencode-smoke-probe.mjs",
+    ]) {
+      assert.equal(fs.existsSync(path.join(ROOTFS, obsolete)), false, obsolete);
+    }
+    assert.ok(fs.existsSync(path.join(ROOTFS, "usr/local/bin/opencode-v2-self-test")));
+    assert.ok(fs.existsSync(path.join(ROOTFS, "usr/local/bin/opencode-lsp-probe.mjs")));
+    assert.doesNotMatch(initService, />\s*\/data\/\.opencode_(?:version|bin)\b/);
+  });
+
   it("pins one matching exact official V2 CLI and plugin release", () => {
     assert.match(dockerfileV2Pin, /^2\.\d+\.\d+$/);
     assert.equal(buildYamlV2Pin, dockerfileV2Pin);

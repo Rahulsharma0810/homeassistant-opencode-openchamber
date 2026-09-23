@@ -8,7 +8,7 @@ import { documentPath, readDocument, createLspSetup, requestLsp } from "../rootf
 import { buildManagedConfig, DEFAULT_LSP_PACKAGE, READ_ONLY_AGENT_ID } from "../rootfs/opt/opencode-v2-homeassistant/managed-config.js";
 
 test("LSP rejects private/outside paths, including virtual drafts", async () => {
-  for (const path of ["../outside.yaml", "/data/options.yaml", "secrets.yaml", ".storage/state.yaml", "ssl/key.yaml", "file.txt"]) {
+  for (const path of ["../outside.yaml", "/data/options.yaml", "secrets.yaml", "secrets.yml", "nested/secrets.yml", ".storage/state.yaml", "ssl/key.yaml", "file.txt"]) {
     assert.throws(() => documentPath(path));
     await assert.rejects(readDocument(path, "draft: true"));
   }
@@ -71,7 +71,7 @@ test("cancelling a stalled LSP request closes its connection", { timeout: 3000 }
     socket.on("close", () => sockets.delete(socket));
   });
   try {
-    const path = join(root, "lsp.sock");
+    const path = process.platform === "win32" ? `\\\\.\\pipe\\ha-lsp-cancel-${process.pid}-${Date.now()}` : join(root, "lsp.sock");
     await new Promise((resolve) => server.listen(path, resolve));
     await assert.rejects(requestLsp("homeassistant/health", null, null, AbortSignal.timeout(50), path));
   } finally {

@@ -10,6 +10,9 @@ the remaining list current instead of accumulating historical plans.
   released in beta `3.0.0b19` from tag commit `38da0a2`. Storefront version commit
   `e02afa3` is on `main`.
 - Published releases: beta `3.0.0b19`, stable `2.5.6`. Stable still uses V1.
+- Release in preparation: beta `3.0.0b20`, containing the I1/I3/I5/I8 work below.
+  Await committed-revision CI and native image publication before advancing
+  storefront metadata; this is a qualification beta, not stable promotion.
 - Pins: OpenCode CLI/plugin `2.0.13`, Node `24.15.0`, Prettier `3.9.8`.
   OpenChamber preview `2.0.0-preview.8` is built from commit
   `9fba129ddf968df1e5fb6916b84d3ceb35493198` and its lockfile, independently of
@@ -29,6 +32,13 @@ the remaining list current instead of accumulating historical plans.
 - Ship one pinned V2 runtime. No V1 executable, runtime selector, automatic runtime
   fallback, downgrade path or retained rollback generations. Preserve one-way
   imports, validated atomic forward upgrades and ordinary Home Assistant backups.
+- Keep `opencode2` as a compatibility alias throughout 3.x. It must execute the
+  same managed V2 client as `opencode`, never select or start another runtime.
+- **Update ownership (2026-09-23):** Home Assistant Supervisor is the sole supported
+  updater for the app and its packaged OpenCode/OpenChamber components. Do not add
+  a custom app updater or enable independent in-container component upgrades.
+  Retain the controls needed to preserve the pinned runtime, matching plugins,
+  managed backend and forward-upgrade contract; prefer minimal customization.
 - Failed migration must preserve its input and report the failure, never silently
   start another runtime or replace populated state with an empty installation.
 - All interfaces use the authenticated s6-owned backend at `127.0.0.1:4100`.
@@ -47,26 +57,74 @@ the remaining list current instead of accumulating historical plans.
 
 ## 1. Implementation work
 
-- [ ] **I1 — OpenChamber editor LSP.** Connect the editor's diagnostics and
+- **I1 — OpenChamber editor LSP implemented and live-rendered acceptance passed.** Connect the editor's diagnostics and
   autocomplete to the credential-isolated HA language server. Agent-facing
   `ha_yaml_*` tools already exist. Preserve sensitive-file, cancellation and
   read-only boundaries; prove actual editor suggestions and diagnostic refresh.
+  Security prerequisite (2026-09-23 working tree): include diagnostics/definitions
+  now reject outside-workspace and sensitive targets before filesystem access,
+  use anchored no-follow metadata checks, and never probe `!secret` locations.
+  LSP tests passed all 87 checks on Linux amd64/Node `24.15.0` in the official
+  devcontainer, including real anchored symlink checks. The source patch, bounded
+  HTTP bridge and CodeMirror lifecycle implementation are integrated; 28 focused
+  Windows checks passed; the shared LSP client's four Linux checks also passed.
+  Rendered acceptance now has opt-in `HA_EDITOR_LSP_ACCEPTANCE=live|unavailable`
+  scenarios using the built FilesView, in-memory file fixtures and real Core
+  Ingress via a localhost browser origin (no forged fetch metadata). Ingress checks
+  validate the original Origin/Host before normalizing the internal editor hop;
+  mandatory browser same-origin fetch metadata proves the external scheme;
+  forwarded-header claims and LAN mode cannot authorize this route. Plain-HTTP
+  LAN origins that omit fetch metadata fail closed (HTTPS/localhost supported).
+  CI now installs isolated editor test dependencies and runs strict type/lifecycle
+  checks plus the native provider-loader test as root. On candidate `f0dc73098e72…`,
+  real Core Ingress acceptance passed rendered entity/service completion,
+  corrected unsaved-draft diagnostics, controlled HTTP-503 recovery and a read-only
+  FilesView with no LSP dispatch or writes. Remaining stopped-worker, resource and
+  platform qualification is tracked in V2/V8/V9 rather than as missing integration.
 - [ ] **I3 — Provider/configuration parity.** Implement native custom-provider
   and PPQ wiring, validated raw `opencode_config`, and remaining supported user
   environment settings. Preserve reserved credential/policy variables. Verify
   selected requests reach the intended provider/proxy and invalid/missing-key
   configurations have actionable outcomes. Until wired, saved raw config and the
   PPQ proxy option must continue to report their limitations honestly.
+  Bounded implementation (2026-09-23 working tree): pinned native V2 schema
+  validates supported raw fields; custom-provider keys and managed PPQ models
+  are wired. Controlled V2 `2.0.13` requests verified endpoint/model selection,
+  environment-key authentication and PPQ loopback routing without logging fixture
+  keys. Initial focused checks passed 85 tests on Node `24.15.0` with one native
+  Linux-loader skip. Security review's missing-provider-env issue is fixed, and
+  the native loader's compile/execute boundary test now passes as Linux root in
+  the official devcontainer (Node `24.15.0`). Final documentation/runtime/state
+  integration checks passed 46/46 on Windows. Remaining: other environment
+  settings, full native startup, real accounts and actual PPQ upstream acceptance.
 - [ ] **I4 — Authenticated LAN access.** Implement remote V2 client attachment,
   CORS and OpenChamber LAN access against the existing managed backend. The saved
   LAN options currently have inactive services. Test authentication, allowed and
   rejected browser origins, client attachment and service ownership.
+  Source-grounded design is available: retain loopback backend/UI and use the
+  existing LAN service slots as authenticated frontends with a separate LAN
+  credential (never distribute the internal backend credential). Before coding,
+  settle the HTTPS termination contract and whether enabling native OpenChamber
+  login on the single UI may also require a login through Ingress. This is shared
+  administrator access, not multi-user/read-only-account isolation. Keep editor
+  LAN requests denied; password rotation must invalidate sessions and streams.
 - [ ] **I5 — Finish obsolete-artifact cleanup.** Inventory unused SDK dependencies,
   generated files, caches, helpers and s6 definitions. Remove only superseded
   app-owned artifacts after required data is preserved. Keep user SSH files,
   customized skills and HA configuration. Confirm the intended compatibility
   lifetime of `opencode2`; it already aliases the same V2 client. V1 execution
   and rollback-generation retention are already removed.
+  Source audit (2026-09-23 working tree): removed four unused beta-only V1
+  permission-helper/test and standalone smoke-probe files. Retained stable's
+  still-used copies, the migration-fixture CLI dependency, transitive SDK packages,
+  and registered LAN/PPQ services needed by I3/I4. No persisted files or user
+  assets were removed. Compatibility alias lifetime is fixed above. The focused
+  runtime-contract suite passed 29/29 on Windows with Node `24.15.0`. In a staged
+  source-tree fixture, MCP regression tests passed 582 checks with 10 optional/
+  platform skips; the opt-in Edge browser run additionally passed its three
+  HTTP/HTTPS form-Origin scenarios (27 passed, 3 platform skips in that file).
+  Removed unused init-marker writes and PPQ bookkeeping without deleting old
+  persisted files. Final integration checks and Linux qualification remain pending.
 - [ ] **I6 — Stable-channel adoption.** After feature and upgrade qualification,
   port the V2-only implementation into `ha_opencode`, preserving stable identity
   and its own data. Review the disabled promotion helper and channel-specific
@@ -74,10 +132,22 @@ the remaining list current instead of accumulating historical plans.
 - [ ] **I7 — Release preparation.** After qualification, update version metadata,
   public docs/translations and changelogs to match implemented behavior. Publish
   the exact approved images and verify manifests and storefront metadata agree.
-- [ ] **I8 — App-aware update notification.** OpenChamber's OpenCode notice still
-  advertises upstream versions with generic installer instructions. Make it
-  accurately explain Home Assistant app-managed updates; upstream availability
-  must not imply an available app update or an in-place runtime upgrade.
+- **I8 — Minimal update-guidance correction completed.** OpenChamber's notice
+  directs users to Home Assistant's existing app update controls without implying
+  an upstream release is an app update. No update discovery, installation or
+  restart machinery was added; managed-runtime restrictions remain intact.
+  Implementation evidence (2026-09-23 working tree): source-only correction for
+  all 12 locales, applied before the frontend build; exact pinned-revision
+  dictionaries accepted by the patcher. On Windows with Node `24.15.0`,
+  `node --test ha_opencode_beta/test/openchamber-app-updates.test.js ha_opencode_beta/test/runtime-contract.test.js`
+  passed 40/40 checks, including source-drift rejection and retained runtime
+  restrictions. Added isolated Ingress browser coverage for a newer upstream
+  release, Dismiss-only guidance and dismissal persistence without real settings
+  writes. Working-tree amd64 image build now passes (candidate recorded under V8),
+  including the source patch and frontend compilation. Rendered English guidance,
+  Dismiss-only controls and dismissal persistence after reload passed through
+  Core Ingress on candidate `f0dc73098e72…`, with no component-install request.
+  All 12 locales retain source coverage; no HAOS qualification is claimed yet.
 
 ## 2. Investigation and operational work
 
@@ -100,10 +170,20 @@ unchecked tests. Record the cause before adding an implementation fix.
   missing. Then test navigation, clicking, debugging and advertised subtools with
   a connected test browser. HA screenshots and the OpenChamber Chromium smoke
   test are separate capabilities, not evidence for these model-facing tools.
+  Documentation finding (2026-09-23): the authoritative V2 Tools guide states
+  that the `browser` namespace controls a browser attached by the OpenCode
+  desktop app (`https://opencode.ai/v2/docs/tools`, Browser section). OpenChamber
+  Ingress and the packaged screenshot Chromium are not that attachment. Desktop
+  attachment to this managed backend remains unverified and depends on a supported
+  authenticated remote-client path; do not invent a CDP/environment workaround.
 - [ ] **D4 — Interrupted web searches.** Capture bounded cancellation/deadline
   evidence with a controlled provider and demonstrate a completed search. Fix
   any confirmed defect. Cancelled requests do not prove provider failure, and
   successful direct web fetching does not establish search coverage.
+  The V2 Websearch guide (`https://opencode.ai/v2/docs/websearch`) documents Exa,
+  Firecrawl, Parallel and Tavily account/env-key integrations and selection via
+  `websearch.provider`. Check I3's environment/config propagation alongside a
+  controlled provider before attributing interruption to the upstream service.
 
 ## 3. Verification of implemented features
 
@@ -127,7 +207,12 @@ item instead of treating all untested behavior as broken.
   LSP-disabled, MCP-disabled, restart/recovery and cancellation behavior under
   supervision. Modern trigger fixtures, authenticated health and unknown-entity/
   service diagnostics with corrected-draft refresh already pass. I1's editor
-  surface needs its own acceptance when implemented.
+  surface now passes real rendered acceptance on the amd64 working-tree candidate.
+  Additional real stopped-worker scenario: unavailable UI rendered, but the harness
+  did not complete/clean up within 180 seconds (exit 124, empty stderr). This check
+  is INCOMPLETE, not a product failure or pass. Investigation paused after bounded
+  attempts; terminal mode and the running LSP service were verified restored.
+  Keep disabled-option, resource and remaining platform scenarios open.
 - [ ] **V3 — Persistent customizations and options.** Verify user-edited skills
   and instructions survive restarts and upgrades and actually reach sessions.
   Finish presentation, focus/context and startup-hook option checks, including
@@ -138,6 +223,11 @@ item instead of treating all untested behavior as broken.
   HA backup/restore, interrupted conversion, visible failure and retry. Existing
   synthetic preservation/pruning checks pass; no rollback generation is required.
   Legacy V1 provider credentials require fresh V2 sign-in.
+  Prepared fixture (2026-09-23): existing official amd64 devcontainer recovered
+  with Core `2026.9.3`, Supervisor `2026.09.3`, beta `3.0.0b13` and stable `2.5.4`.
+  Created and verified Supervisor partial backup `c1b260f9` of the beta app before
+  replacement; archive retained in the devcontainer's backup volume with mode
+  `0600`. Stable app unchanged. Upgrade and restore checks are not yet complete.
 - [ ] **V5 — Providers and MCP.** Verify real API-key/OAuth sign-in and refresh,
   native and inbound MCP, and compact/configuration/full profiles. Check disabled
   options and read-only permissions at dispatch. Account-dependent flows remain
@@ -161,6 +251,25 @@ item instead of treating all untested behavior as broken.
   `35819967061` passed. Published amd64/arm64 manifest digest:
   `sha256:685fb6bb1e6c67841cc80769a81d9ec1ff885f45600f4fea9e8f4fbcf62ccc48`.
   Repeat qualification for subsequent runtime changes and the stable candidate.
+  Working-tree amd64 build (2026-09-23, official devcontainer): succeeded after
+  retrying the pinned source fetch over HTTP/1.1; initial Git TLS transfer failed.
+  Local candidate tag `ha-opencode-candidate:20260923-i1-i3`, image/index ID
+  `sha256:f0dc73098e7275a880393da1b9eb9ef00efdc6f5e042868053e1ab2dd7dc5826`.
+  Frontend build, actual-preview request framing and forward-migration build
+  fixtures passed. This local image reuses development version `3.0.0b19` but is
+  NOT the published b19 image and has not been pushed. Full live preview/backend
+  lifecycle and rendered I1/I8 acceptance passed on this exact running image.
+  Initial failures were acceptance-harness defects (Sonner animation/click timing,
+  waiter cleanup, keyboard API, editor selectors and fixture request handling),
+  fixed without changing production code or rebuilding. ARM remains outstanding.
+  Integrated Linux source snapshot: 191 passed, zero failed, one optional DOM
+  skip across 21 files, including controlled provider/formatter/context runtime
+  requests, skills and corrected proxy parity. Separate shared-client (4/4),
+  native credential-loader (1/1), HA LSP (87/87) and Windows CodeMirror DOM checks
+  passed. A subsequent isolated Linux run passed migration/managed-CLI 10/10,
+  covering failed-upgrade preservation, exact session/message conversion,
+  credential-input rejection and non-starting CLI behavior. Staging normalized
+  CRLF in only the five skill files; host files remained untouched.
 - [ ] **V9 — HAOS acceptance and soak.** Complete controlled HAOS acceptance on
   both architectures, then seven days of representative operation on each.
   Record versions, tool failures, crashes/restarts, orphan processes, resource

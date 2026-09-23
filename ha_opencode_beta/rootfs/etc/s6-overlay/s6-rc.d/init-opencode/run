@@ -181,7 +181,7 @@ OPTIONS_FILE="/data/options.json"
 ENV_VARS_COUNT=$(jq -r '.env_vars // [] | length' "${OPTIONS_FILE}")
 
 # Reserved names that would break the add-on if overridden
-ENV_VARS_RESERVED='"HOME","PATH","SUPERVISOR_TOKEN","HA_TOKEN","HA_NATIVE_MCP_API_ID","OPENCODE_MCP_TOOL_PROFILE","OPENCODE_NATIVE_HA_MCP_ENABLED","TMPDIR","XDG_DATA_HOME","XDG_CONFIG_HOME","XDG_STATE_HOME","XDG_CACHE_HOME","NPM_CONFIG_PREFIX","npm_config_prefix","NODE_OPTIONS","OPENCODE_DISABLE_AUTOUPDATE","OPENCODE_CONFIG","OPENCODE_CONFIG_CONTENT","OPENCODE_CONFIG_DIR","OPENCODE_DISABLE_PROJECT_CONFIG","OPENCODE_SERVER_USERNAME","OPENCODE_SERVER_PASSWORD","OPENCODE_V2_ROOT","OPENCODE_V2_HOME","OPENCODE_V2_CONFIG_HOME","OPENCODE_V2_DATA_HOME","OPENCODE_V2_STATE_HOME","OPENCODE_V2_CACHE_HOME","OPENCODE_V2_WORK_ROOT","LD_PRELOAD","LD_LIBRARY_PATH","BASH_ENV","ENV","CDPATH","GLOBIGNORE","BASHOPTS","SHELLOPTS","IFS","SHELL","USER","PWD"'
+ENV_VARS_RESERVED='"HOME","PATH","SUPERVISOR_TOKEN","HA_TOKEN","HA_ACCESS_TOKEN","HA_NATIVE_MCP_API_ID","HA_URL","HA_VERIFY_SSL","SCREENSHOT_ENABLED","PORT","OPENCODE_MCP_TOOL_PROFILE","OPENCODE_NATIVE_HA_MCP_ENABLED","TMPDIR","XDG_DATA_HOME","XDG_CONFIG_HOME","XDG_STATE_HOME","XDG_CACHE_HOME","NPM_CONFIG_PREFIX","npm_config_prefix","NODE_OPTIONS","OPENCODE_DISABLE_AUTOUPDATE","OPENCODE_CONFIG","OPENCODE_CONFIG_CONTENT","OPENCODE_CONFIG_DIR","OPENCODE_DISABLE_PROJECT_CONFIG","OPENCODE_SERVER_USERNAME","OPENCODE_SERVER_PASSWORD","OPENCODE_V2_ROOT","OPENCODE_V2_HOME","OPENCODE_V2_CONFIG_HOME","OPENCODE_V2_DATA_HOME","OPENCODE_V2_STATE_HOME","OPENCODE_V2_CACHE_HOME","OPENCODE_V2_WORK_ROOT","LD_PRELOAD","LD_LIBRARY_PATH","BASH_ENV","ENV","CDPATH","GLOBIGNORE","BASHOPTS","SHELLOPTS","IFS","SHELL","USER","PWD"'
 
 if [ "${ENV_VARS_COUNT}" -gt 0 ]; then
     bashio::log.info "Processing ${ENV_VARS_COUNT} user-defined environment variable(s)..."
@@ -192,6 +192,7 @@ if [ "${ENV_VARS_COUNT}" -gt 0 ]; then
         (.env_vars // [])[] |
         select(.name | test(\"^[A-Za-z_][A-Za-z0-9_]*\$\")) |
         select(.name | IN(${ENV_VARS_RESERVED}) | not) |
+        select(.name | startswith(\"OPENCODE_\") | not) |
         \"export \(.name)=\(.value | tostring | @sh)\"
     " "${OPTIONS_FILE}" >> "${ENV_VARS_FILE}"
 
@@ -214,7 +215,7 @@ if [ "${ENV_VARS_COUNT}" -gt 0 ]; then
         (.env_vars // [])[] | .name as \$n |
         if (\$n | test(\"^[A-Za-z_][A-Za-z0-9_]*\$\") | not) then
             \"invalid\t\(\$n | gsub(\"[\\n\\t]\"; \" \"))\"
-        elif (\$n | IN(${ENV_VARS_RESERVED})) then
+        elif ((\$n | IN(${ENV_VARS_RESERVED})) or (\$n | startswith(\"OPENCODE_\"))) then
             \"reserved\t\(\$n)\"
         else
             \"ok\t\(\$n)\"
@@ -276,17 +277,13 @@ fi
 # Export PPQ API key for the internal private-mode proxy
 # ==============================================================================
 
-PPQ_API_KEY_CONFIGURED=false
-
 if bashio::var.true "${PPQ_PRIVATE_ENABLED}"; then
     if [ -n "${PPQ_API_KEY}" ]; then
         printf 'export PPQ_API_KEY=%q\n' "${PPQ_API_KEY}" >> "${ENV_VARS_FILE}"
         chmod 600 "${ENV_VARS_FILE}"
         bashio::log.info "PPQ private mode enabled; API key configured"
-        PPQ_API_KEY_CONFIGURED=true
     elif [ -f "${ENV_VARS_FILE}" ] && grep -qE '^export PPQ_API_KEY=' "${ENV_VARS_FILE}"; then
         bashio::log.info "PPQ private mode enabled; API key configured via env_vars"
-        PPQ_API_KEY_CONFIGURED=true
     else
         bashio::log.warning "PPQ private mode is enabled, but no PPQ API key is configured"
         bashio::log.warning "The PPQ proxy and OpenCode provider will stay inactive until a key is added"
@@ -538,8 +535,6 @@ setup_opencode_runtime() {
         && v2_effective_version=$(opencode_v2_probe_version "${v2_bin}"); then
         if [ "${v2_effective_version}" = "${v2_certified_version}" ]; then
             V2_RUNTIME_BINARY_READY=true
-            printf '%s\n' "${v2_effective_version}" > /data/.opencode_version
-            printf '%s\n' /usr/local/bin/opencode > /data/.opencode_bin
             bashio::log.info "Pinned OpenCode V2 runtime ready: ${v2_effective_version}"
         else
             bashio::log.warning "OpenCode V2 resolved to ${v2_effective_version}, not certified ${v2_certified_version}; V2 stays inactive"
@@ -590,6 +585,7 @@ if [ "${V2_STATE_READY}" = "true" ] && opencode_v2_select_generation; then
     V2_PLUGIN_ENABLED=$([ "${MCP_ENABLED}" = "true" ] && echo "true" || echo "false")
     V2_NATIVE_MCP_ENABLED=$([ "${V2_PLUGIN_ENABLED}" = "true" ] && [ "${NATIVE_HA_MCP_ENABLED}" = "true" ] && echo "true" || echo "false")
     V2_CONFIG_TEMP=""
+    V2_PROVIDER_ENV_TEMP=""
     V2_PASSWORD_TEMP=""
     V2_SIDECAR_SECRET_TEMP=""
     V2_SIDECAR_ENV_TEMP=""
@@ -618,11 +614,14 @@ if [ "${V2_STATE_READY}" = "true" ] && opencode_v2_select_generation; then
         && cp /opt/ha-mcp-server/AGENTS.md "${V2_RUNTIME_ROOT}/config/opencode/AGENTS.md" \
         && chmod 644 "${V2_RUNTIME_ROOT}/config/opencode/AGENTS.md"; then
         V2_CONFIG_TEMP=$(mktemp "${V2_RUNTIME_ROOT}/.managed.XXXXXX")
+        V2_PROVIDER_ENV_TEMP=$(mktemp "${V2_RUNTIME_ROOT}/.provider-env.XXXXXX")
         V2_PASSWORD_TEMP=$(mktemp "${V2_RUNTIME_ROOT}/.password.XXXXXX")
         if [ "${V2_PLUGIN_ENABLED}" = "true" ]; then
             V2_SIDECAR_SECRET_TEMP=$(mktemp "${V2_RUNTIME_ROOT}/.sidecar.XXXXXX")
         fi
         if node /opt/opencode-v2-homeassistant/managed-config.js \
+                --options-file /data/options.json \
+                --environment-output "${V2_PROVIDER_ENV_TEMP}" \
                 --restrict-sensitive-files "${V2_RESTRICT_BOOL}" \
                 --plugin-enabled "${V2_PLUGIN_ENABLED}" \
                 --native-mcp-enabled "${V2_NATIVE_MCP_ENABLED}" \
@@ -633,7 +632,7 @@ if [ "${V2_STATE_READY}" = "true" ] && opencode_v2_select_generation; then
                 --decision-notes "${DECISION_NOTES_ENABLED}" \
                 --lsp-enabled "${LSP_ENABLED}" \
                 --user-hooks "${USER_HOOKS_ENABLED}" > "${V2_CONFIG_TEMP}" \
-            && chmod 644 "${V2_CONFIG_TEMP}" \
+            && chmod 600 "${V2_CONFIG_TEMP}" "${V2_PROVIDER_ENV_TEMP}" \
             && { od -An -N32 -tx1 /dev/urandom | tr -d ' \n' > "${V2_PASSWORD_TEMP}"; } \
             && test "$(wc -c < "${V2_PASSWORD_TEMP}")" -eq 64 \
             && chmod 600 "${V2_PASSWORD_TEMP}" \
@@ -642,6 +641,7 @@ if [ "${V2_STATE_READY}" = "true" ] && opencode_v2_select_generation; then
                     && test "$(wc -c < "${V2_SIDECAR_SECRET_TEMP}")" -eq 64 \
                     && chmod 600 "${V2_SIDECAR_SECRET_TEMP}"; }; } \
             && mv -f "${V2_CONFIG_TEMP}" "${V2_RUNTIME_ROOT}/managed.json" \
+            && mv -f "${V2_PROVIDER_ENV_TEMP}" "${V2_RUNTIME_ROOT}/provider-env" \
             && mv -f "${V2_PASSWORD_TEMP}" "${V2_RUNTIME_ROOT}/server-password" \
             && { [ "${V2_PLUGIN_ENABLED}" != "true" ] \
                 || { mv -f "${V2_SIDECAR_SECRET_TEMP}" "${V2_RUNTIME_ROOT}/sidecar-secret" \
@@ -678,7 +678,7 @@ if [ "${V2_STATE_READY}" = "true" ] && opencode_v2_select_generation; then
                 bashio::log.info "OpenCode V2 native Home Assistant MCP bridge is ready behind the credential-isolated sidecar"
             fi
         else
-            rm -f -- "${V2_CONFIG_TEMP}" "${V2_PASSWORD_TEMP}" "${V2_SIDECAR_SECRET_TEMP}" "${V2_SIDECAR_ENV_TEMP}"
+            rm -f -- "${V2_CONFIG_TEMP}" "${V2_PROVIDER_ENV_TEMP}" "${V2_PASSWORD_TEMP}" "${V2_SIDECAR_SECRET_TEMP}" "${V2_SIDECAR_ENV_TEMP}"
             bashio::log.warning "OpenCode V2 managed configuration could not be secured; its server is disabled for this boot"
         fi
     else
@@ -989,9 +989,6 @@ done || true
 # Native V2 configuration was generated above. Do not generate a second,
 # unused V1 configuration or rewrite user-owned legacy config files.
 # ==============================================================================
-if [ "${PPQ_PRIVATE_ENABLED}" = true ]; then
-    bashio::log.warning "PPQ's native V2 provider configuration is pending; enabling the proxy does not select a private model."
-fi
 
 # ==============================================================================
 # Generate the home context files
@@ -1027,12 +1024,10 @@ else
 fi
 
 # ==============================================================================
-# Raw configuration awaits native V2 validation. Keep the user's saved value
-# without reporting an unused V1 config file as an applied V2 configuration.
+# Raw configuration is validated while staging the managed V2 configuration.
+# Unsupported fields disable that backend for this boot with a concrete error;
+# the saved option is preserved for correction rather than silently ignored.
 # ==============================================================================
-if jq -e '(.opencode_config // "") != ""' /data/options.json >/dev/null 2>&1; then
-    bashio::log.warning "Custom opencode_config is not applied: native V2 validation is pending. The saved option is preserved."
-fi
 
 # ==============================================================================
 # User startup hooks (opt-in)

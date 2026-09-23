@@ -4,6 +4,8 @@
 Temporarily selects OpenChamber, checks its real backend and UI lifecycle, then
 restores the original interface. No HA device calls are made. Set the additional
 HA_OPENCHAMBER_MODEL_ACCEPTANCE=1 to send one real free-model prompt through the UI.
+HA_EDITOR_LSP_ACCEPTANCE=unavailable temporarily stops only the supervised LSP
+worker for the rendered unavailable check, then restores it before smoke checks.
 """
 import json
 import os
@@ -15,6 +17,9 @@ if os.environ.get("HA_OPENCHAMBER_ACCEPTANCE") != "1":
     raise SystemExit("Set HA_OPENCHAMBER_ACCEPTANCE=1 in the official devcontainer")
 APP = "app_local_ha_opencode_beta"
 SLUG = "local_ha_opencode_beta"
+EDITOR_MODE = os.environ.get("HA_EDITOR_LSP_ACCEPTANCE") or None
+if EDITOR_MODE not in (None, "live", "unavailable"):
+    raise SystemExit("HA_EDITOR_LSP_ACCEPTANCE must be live or unavailable")
 
 
 def command(*args, timeout=45):
@@ -69,7 +74,23 @@ def ready():
     raise AssertionError("OpenChamber did not reach the pinned V2 backend")
 
 
+def set_lsp_running(running):
+    service = "/run/service/ha-opencode-v2-lsp"
+    app("s6-svc", "-u" if running else "-d", service)
+    for _ in range(60):
+        up = app("s6-svstat", "-o", "up", service).strip() == "true"
+        if up == running:
+            if not running:
+                return
+            socket = subprocess.run(["docker", "exec", APP, "test", "-S", "/run/opencode-v2/lsp.sock"], capture_output=True, timeout=5)
+            if socket.returncode == 0:
+                return
+        time.sleep(0.2)
+    raise AssertionError("Supervised LSP worker did not reach the requested acceptance state")
+
+
 original = json.loads(command("ha", "--raw-json", "apps", "info", SLUG))["data"]["options"]["interface_mode"]
+lsp_suspended = False
 try:
     select_interface("openchamber")
     ready()
@@ -116,11 +137,37 @@ req = urllib.request.Request("http://supervisor/ingress/session", data=b"{}", he
 with urllib.request.urlopen(req, timeout=10) as response:
     print(json.load(response)["data"]["session"])
 ''').strip()
-    browser = subprocess.run(["docker", "exec", "-i", APP, "node", "/local_apps/opencode/scripts/devcontainer-openchamber-browser.mjs"],
-                             input=json.dumps({"entry": entry, "session": session, "livePrompt": os.environ.get("HA_OPENCHAMBER_MODEL_ACCEPTANCE") == "1"}),
-                             capture_output=True, text=True, timeout=140)
-    assert browser.returncode == 0, "Preview browser acceptance failed; inspect its bounded browser assertions"
+    if EDITOR_MODE == "unavailable":
+        assert app("s6-svstat", "-o", "up", "/run/service/ha-opencode-v2-lsp").strip() == "true", "Unavailable acceptance needs an initially running worker to restore"
+        lsp_suspended = True
+        set_lsp_running(False)
+    try:
+        browser = subprocess.run(["docker", "exec", "-i", APP, "node", "/local_apps/opencode/scripts/devcontainer-openchamber-browser.mjs"],
+                                 input=json.dumps({"entry": entry, "session": session, "livePrompt": os.environ.get("HA_OPENCHAMBER_MODEL_ACCEPTANCE") == "1",
+                                                   "editorLspMode": EDITOR_MODE}),
+                                 capture_output=True, text=True, timeout=180)
+    except subprocess.TimeoutExpired as error:
+        # Keep bounded checkpoints on timeout too; restoration below restarts the
+        # app and reaps the browser exec even when the Docker client timed out.
+        decode = lambda value: value.decode(errors="replace") if isinstance(value, bytes) else (value or "")
+        browser = subprocess.CompletedProcess([], 124, decode(error.stdout), decode(error.stderr))
+    if browser.returncode != 0:
+        # Preserve diagnostic location, never browser URLs/cookies or exception
+        # payloads that could include credentials or real user content.
+        for line in browser.stdout.splitlines():
+            if line.startswith(("PASS:", "CHECK:")):
+                print(line, flush=True)
+        locations = re.findall(r"devcontainer-openchamber[\w-]*\.mjs:\d+:\d+", browser.stderr)
+        kinds = re.findall(r"^(?:AssertionError|TimeoutError|TypeError|ReferenceError|Error)\b", browser.stderr, re.M)
+        markers = [word for word in ("Timeout", "Target closed", "Protocol error", "out of memory", "SIGKILL", "SIGABRT", "AssertionError", "Error") if word in browser.stderr]
+        print(f"Browser failure: exit={browser.returncode}, stderr_bytes={len(browser.stderr.encode())}, "
+              + ", ".join(dict.fromkeys(kinds + locations + markers)), flush=True)
+        raise AssertionError("Preview browser acceptance failed at the bounded locations above")
     print(browser.stdout.strip())
+    if lsp_suspended:
+        set_lsp_running(True)
+        lsp_suspended = False
+        print("PASS: supervised LSP worker restored after real unavailable-editor acceptance")
     app("opencode-smoke-test", "--quiet")
     app("s6-svc", "-d", "/run/service/ha-openchamber")
     for _ in range(50):
@@ -136,4 +183,8 @@ with urllib.request.urlopen(req, timeout=10) as response:
     assert backend_pid() == pid, "UI restart created/replaced the backend"
     print("PASS: pinned preview, hardened credential process, shared sessions/policy, absent-backend recovery, independent UI stop/start")
 finally:
-    select_interface(original)
+    try:
+        if lsp_suspended:
+            set_lsp_running(True)
+    finally:
+        select_interface(original)

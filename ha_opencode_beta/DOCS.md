@@ -40,7 +40,7 @@ at `/usr/share/doc/ha-opencode/NOTICE` and in this repository's
 - **Compact Home Assistant context**: New `get_home_context` MCP tool gives agents focused area/domain/entity context with area and device metadata instead of broad state dumps.
 - **Native LLM provider development guide**: New `get_ha_llm_development_guide` MCP tool helps custom integration authors build `<integration>/llm.py` tool providers aligned with Home Assistant's upstream architecture.
 - **Serial device access**: Selected host UART/serial devices can be mapped into the add-on for USB flashing and adapter inspection workflows. Full Supervisor `uart` and `udev` manifest flags remain disabled by default because they are static permissions, not runtime user options.
-- **LAN and PPQ compatibility**: Authenticated V2 LAN/OpenChamber LAN and native PPQ provider configuration are pending. Enabling the PPQ proxy alone does not select a private model.
+- **LAN and PPQ compatibility**: Authenticated V2 LAN/OpenChamber LAN is pending. PPQ now registers native private models when enabled with a key; select a private model explicitly. Actual upstream encryption/private-inference acceptance remains pending.
 - **Web terminal clipboard fixes**: Copying inside OpenCode now reaches the browser clipboard, plain `Ctrl+V` paste works, and macOS users can use `Option+drag` to select text while full-screen terminal apps capture the mouse.
 - **Touch scrolling**: One-finger vertical drag gestures inside the terminal now scroll full-screen apps such as OpenCode on phones and tablets.
 - **Certified OpenCode runtime**: The app ships one pinned V2 build. Runtime upgrades arrive through app images. See [OpenCode Updates](#opencode-updates).
@@ -87,7 +87,7 @@ Treat `/addon_configs` as sensitive because it may contain configuration data fo
 
 By default (**Restrict access to sensitive files** = `true`), the add-on adds an OpenCode `permission.read` rule that blocks the AI's file-**read** tool from opening secret/credential files — `secrets.yaml` (any path ending in `secrets.yaml`), the `.storage/` and `.cloud/` directories, the `ssl/` directory, and any `*.key`/`*.pem` files — so their contents can't be pulled into the model's context. Everything else stays readable, and the agent can still edit normal config that *references* secrets via `!secret`. The Home Assistant MCP tools are unaffected; they read live state through the API.
 
-Set **Restrict access to sensitive files** to `false` to remove the normal agent's sensitive-file read rules. The read-only agent retains its own restrictions. Native custom-configuration validation is pending; saved `opencode_config` values are currently reported as unapplied rather than written into an unused V1 config.
+Set **Restrict access to sensitive files** to `false` to remove the normal agent's sensitive-file read rules. The read-only agent retains its own restrictions. The supported native `opencode_config` subset is validated before activation and cannot override managed permissions, plugins or integration policy; see [Custom Providers and Configuration](#custom-providers-and-configuration-beta).
 
 **Scope/limitation:** this guards OpenCode's file-read tool (the common accidental-exposure path). It does **not** restrict shell commands, so an explicit `cat secrets.yaml` can still read the file — treat it as a strong guardrail, not a hard sandbox.
 
@@ -108,14 +108,40 @@ Pass a YAML path inside `/homeassistant`, or supply optional in-memory `text` to
 check a draft without writing it. Sensitive files and symlink traversal are
 rejected. Home Assistant credentials stay in the root-only worker; the V2 process
 communicates through a Unix socket. This works independently of MCP enablement.
+Include diagnostics and definitions are also confined to that workspace without
+following symlinks. Sensitive/hidden targets are rejected before probing whether
+they exist; `!secret` definitions never probe or return secret-file locations.
 
 The managed config still has `lsp: false` because V2 has no native LSP runner;
-the `homeassistant.lsp` plugin owns this integration. Agent completion tools are
-available; automatic OpenChamber editor LSP completion remains under development.
+the `homeassistant.lsp` plugin owns the agent integration. OpenChamber's editable
+YAML views also request diagnostics and completion for unsaved drafts inside
+`/homeassistant` through authenticated Ingress. Read-only and sensitive-file
+views do not dispatch these requests. Diagnostics are debounced; edits, file
+switches and closed views cancel outstanding work, and stale results are ignored.
+The editor reports unavailable language assistance rather than treating an LSP
+outage as a clean document. This assistance does not save files or reload HA;
+normal editor save controls and approval policies remain separate. LAN editor
+access is not enabled by this integration. Rendered live-HA completion and
+diagnostic refresh passed on amd64; disabled-worker, ARM and HAOS qualification
+remain part of the beta readiness plan.
+The editor transport requires browser `Sec-Fetch-Site: same-origin` metadata to
+validate requests across Ingress's TLS-terminating proxies. Use HTTPS (or a
+localhost browser origin); browsers that omit this metadata, commonly on plain
+HTTP LAN origins, receive an unavailable result rather than weakening the origin
+check. Agent `ha_yaml_*` tools do not have this browser restriction.
 
 Approved native `.yaml`/`.yml` writes use pinned Prettier and honor the file's
 `.prettierrc` preferences. Formatting does not reload Home Assistant or replace
 configuration validation. The read-only agent denies edits and LSP dispatch.
+
+## Desktop Browser Tools versus HA Screenshots
+
+OpenCode's model-facing `browser` tools require a browser attached by the
+OpenCode desktop app, as described in the [V2 Tools guide](https://opencode.ai/v2/docs/tools).
+Opening OpenChamber through Ingress does not attach that desktop browser. The
+packaged Chromium used by the optional HA `screenshot_url` tool is a separate
+capability. Desktop-browser attachment to the beta app's managed server is not
+yet qualified; do not expose a Chromium debugging port as a workaround.
 
 ## Home Assistant Skills
 
@@ -244,8 +270,13 @@ The add-on does no memory-heavy start-up install, so it runs on low-memory hosts
 The beta app ships one certified OpenCode V2 runtime, installed at build time and
 verified against its exact pin. The terminal, API client and status commands all
 refer to the same managed server. V1 and runtime rollback are not available.
+The `opencode2` command remains supported throughout 3.x as an alias of `opencode`;
+it does not select a different runtime or start another server.
 
 OpenCode's auto-updater is disabled. **A new OpenCode arrives with an app update.**
+Home Assistant Supervisor updates the packaged OpenCode and OpenChamber components
+together. A newer upstream OpenCode release does not mean an app update is available;
+check the OpenCode app's page in Home Assistant for available app updates.
 Use the Home Assistant app controls to manage the service; upstream service-manager
 commands that could start another daemon are rejected by the app's CLI.
 
@@ -445,10 +476,71 @@ does not currently start a listener on `4097`.
 
 ## PPQ Private TEE Models (Beta)
 
-Native V2 provider wiring is pending. The pinned PPQ proxy remains available on
-internal loopback port `8787` when enabled, but this alone does not route OpenCode
-requests through it or select a private model. Startup reports this limitation;
-the option must not be interpreted as an active private-inference guarantee.
+Enable **PPQ private TEE models** and set the PPQ key privately in the app options.
+The app starts the pinned proxy on internal loopback port `8787` and registers
+native `ppq-private` models. Select one explicitly; enabling the option does not
+switch existing sessions or override an explicit default model. The upstream PPQ
+key stays with the proxy, not the V2 backend. Missing keys leave this provider
+inactive with a warning; selecting a PPQ default without its prerequisites stops
+activation with an actionable error.
+
+| Model selection ID | Display name |
+| --- | --- |
+| `ppq-private/private/kimi-k2-5` | Kimi K2.5 (Private) |
+| `ppq-private/private/deepseek-r1-0528` | DeepSeek R1 (Private) |
+| `ppq-private/private/gpt-oss-120b` | GPT-OSS 120B (Private) |
+| `ppq-private/private/llama3-3-70b` | Llama 3.3 70B (Private) |
+| `ppq-private/private/qwen3-vl-30b` | Qwen3-VL 30B (Private) |
+
+Controlled V2 tests verify routing to the local proxy endpoint. Startup does not
+certify proxy readiness, upstream availability, encryption or private inference;
+those require real PPQ acceptance before stable promotion.
+
+## Custom Providers and Configuration (Beta)
+
+The **Custom OpenCode configuration** option accepts a JSON object, not JSONC or
+V1 provider syntax. Supported root fields are `$schema`, `model`, `default_agent`,
+`providers`, boolean `formatter`, `compaction`, `media` and `tool_output`.
+Nested settings are checked against the pinned native V2 schema. Unsupported
+fields and invalid values stop V2 activation for that boot, preserving the saved
+options for correction. Managed permissions, agents, plugins, snapshots, LSP,
+runtime selection and integration policy cannot be overridden here.
+
+For example, configure `CUSTOM_API_KEY` privately in **Environment variables**,
+then paste this JSON into **Custom OpenCode configuration**, replacing the example
+endpoint and model ID with your provider's values:
+
+```json
+{
+  "model": "custom/chat",
+  "providers": {
+    "custom": {
+      "name": "Custom provider",
+      "package": "@opencode/ai/providers/openai-compatible",
+      "env": ["CUSTOM_API_KEY"],
+      "settings": {
+        "baseURL": "https://provider.example/v1",
+        "apiKey": "{env:CUSTOM_API_KEY}"
+      },
+      "models": {
+        "chat": { "modelID": "your-model-id", "name": "Custom chat" }
+      }
+    }
+  }
+}
+```
+
+Only documented built-in provider packages are accepted; external packages and
+`{file:...}` substitutions are rejected. An explicit `{env:...}` reference must
+resolve to a configured, nonempty supported key. Provider `env` declarations
+without keys produce a warning so native account sign-in remains possible.
+
+Backend environment forwarding currently supports uppercase, non-reserved
+`*_API_KEY` variables only. HA, Supervisor, PPQ and managed-policy names are
+reserved. Other variables retain separate shell/service handling and generate
+a warning; cloud credential chains and general environment parity remain under
+development. Ordinary provider keys are not isolated from backend subprocesses.
+Do not paste keys into chat. Native `/connect` account setup remains available.
 
 ## Startup Hooks (Beta)
 

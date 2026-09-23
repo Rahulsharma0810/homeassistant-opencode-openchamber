@@ -96,7 +96,7 @@ configuration:
 
   ppq_private_enabled:
     name: "PPQ private TEE models (beta)"
-    description: "Requires the PPQ API key below and starts an internal encryption proxy. Native V2 provider wiring is pending; enabling this proxy alone does not route OpenCode requests through a private model."
+    description: "Starts the internal proxy and registers native ppq-private models when a key is configured. Select a private model explicitly; this does not switch existing sessions or verify upstream private inference."
 
   ppq_api_key:
     name: "PPQ API key"
@@ -120,11 +120,11 @@ configuration:
 
   env_vars:
     name: "Environment variables"
-    description: "Extra environment variables for OpenCode and the terminal shell, each with a name and a value. Useful for providers that are configured through the environment, such as AZURE_RESOURCE_NAME or OPENAI_API_KEY — most providers are set up inside the app with '/connect' instead. Critical system variables such as HOME, PATH and SUPERVISOR_TOKEN cannot be overridden."
+    description: "The V2 backend accepts non-reserved provider *_API_KEY variables such as OPENAI_API_KEY. Other variables have separate shell/service handling and produce a backend warning. Critical system and HA credential variables cannot be overridden. Provider keys are not isolated from backend subprocesses; configure them privately, not in chat."
 
   opencode_config:
     name: "Custom OpenCode configuration"
-    description: "Native V2 custom-configuration validation is under development. Saved values are preserved but currently reported as unapplied; managed app policy remains active."
+    description: "Native V2 JSON subset: model, default_agent, providers, boolean formatter, compaction, media and tool_output. Unsupported or invalid fields stop V2 activation until corrected; saved options are preserved. Managed permissions, plugins, runtime and integration policy cannot be overridden. See Documentation for examples and limits."
 
   user_hooks_enabled:
     name: "Startup hooks (beta)"

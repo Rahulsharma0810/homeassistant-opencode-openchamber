@@ -38,8 +38,23 @@ jobs:
         working-directory: ha_opencode_beta/rootfs/opt/opencode-v2-homeassistant
         run: npm run verify:versions
 
+      - name: Prepare isolated editor contract dependencies
+        run: |
+          editor_deps="${RUNNER_TEMP}/ha-editor-contracts"
+          npm install --prefix "${editor_deps}" --ignore-scripts --no-audit --no-fund \
+            @codemirror/autocomplete@6.20.3 @codemirror/lint@6.9.7 \
+            @codemirror/state@6.7.1 @codemirror/view@6.43.9 \
+            typescript@5.9.3 jsdom@26.1.0
+          echo "HA_EDITOR_TEST_DEPS=${editor_deps}" >> "${GITHUB_ENV}"
+          cp ha_opencode_beta/rootfs/opt/openchamber/editor-lsp/editor* "${editor_deps}/"
+          "${editor_deps}/node_modules/.bin/tsc" --noEmit --strict --module esnext \
+            --moduleResolution bundler --target ES2022 --lib ES2022,DOM "${editor_deps}/editor.ts"
+
       - name: Beta add-on contract tests
         run: node --test "ha_opencode_beta/test/*.test.js"
+
+      - name: Native provider credential loader boundary
+        run: sudo "$(command -v node)" --test ha_opencode_beta/test/opencode-v2-provider-environment.test.js
 
       - name: Stable add-on contract tests
         run: node --test "ha_opencode/test/*.test.js"
