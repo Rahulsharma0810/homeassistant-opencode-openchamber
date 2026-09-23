@@ -6,13 +6,11 @@ the remaining list current instead of accumulating historical plans.
 
 ## Starting point
 
-- Implementation baseline: `e3b2b71`, including the Ingress session-creation fix,
-  released in beta `3.0.0b19` from tag commit `38da0a2`. Storefront version commit
-  `e02afa3` is on `main`.
-- Published releases: beta `3.0.0b19`, stable `2.5.6`. Stable still uses V1.
-- Release in preparation: beta `3.0.0b20`, containing the I1/I3/I5/I8 work below.
-  Await committed-revision CI and native image publication before advancing
-  storefront metadata; this is a qualification beta, not stable promotion.
+- Implementation baseline: `cbe9cfe`, released as beta `3.0.0b20`; storefront
+  version commit `398617e` is on `main`. Includes the I1/I3/I5/I8 work below and
+  CI fixture corrections, retaining b19's Ingress session-creation fix.
+- Published releases: beta `3.0.0b20`, stable `2.5.6`. Stable still uses V1.
+  b20 is a qualification beta, not stable promotion.
 - Pins: OpenCode CLI/plugin `2.0.13`, Node `24.15.0`, Prettier `3.9.8`.
   OpenChamber preview `2.0.0-preview.8` is built from commit
   `9fba129ddf968df1e5fb6916b84d3ceb35493198` and its lockfile, independently of
@@ -270,6 +268,17 @@ item instead of treating all untested behavior as broken.
   covering failed-upgrade preservation, exact session/message conversion,
   credential-input rejection and non-starting CLI behavior. Staging normalized
   CRLF in only the five skill files; host files remained untouched.
+  b20 release evidence: PR Checks `35836134728` passed for tag commit `cbe9cfe`;
+  native amd64/arm64 boundary checks `35835872912` passed before the final test-only
+  parity correction. Native release build/publication `35836262147` then passed
+  on exact tag commit `cbe9cfe`, including both boundary fixtures and multi-arch
+  publication. Only after images were available was `beta-v3.0.0b20` pushed;
+  Create Beta Release `35836946676` published the prerelease and advanced beta
+  storefront metadata. Stable runtime/config remain `2.5.6`; only a shared-parity
+  test assertion changed under the stable source folder.
+  Tag-triggered build `35836946688` also passed and attached `container-images.md`
+  and `image-manifest.txt` to the release. Verified final amd64/arm64 image index:
+  `sha256:cda0cacf505c478c0c904cfb592f7fc99f5e8443ed8830ae902d9555dde28d17`.
 - [ ] **V9 — HAOS acceptance and soak.** Complete controlled HAOS acceptance on
   both architectures, then seven days of representative operation on each.
   Record versions, tool failures, crashes/restarts, orphan processes, resource
@@ -277,7 +286,7 @@ item instead of treating all untested behavior as broken.
 
 ## Execution order
 
-1. Implement I1, I3 and I4 with focused acceptance; finish I5 and I8 alongside them.
+1. Finish I3, I4 and I5 with focused acceptance; preserve completed I1/I8 behavior.
 2. Investigate D1–D4 when the necessary installation/account/browser is available.
 3. Close V1–V7, recording scenario evidence and precise blockers. Run checks for
    implemented features while independent implementation work proceeds.
