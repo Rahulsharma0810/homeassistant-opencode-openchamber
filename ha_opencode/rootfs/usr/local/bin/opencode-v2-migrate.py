@@ -934,6 +934,12 @@ def project_session(
     assistants = [
         message["value"] for message in messages if message["value"]["role"] == "assistant"
     ]
+    # Upstream uses assistants.reduce((total, item) => total + item.cost, 0).
+    # Python 3.12+ sum() compensates floating-point error, so even perfectly
+    # migrated histories can have a different aggregate if we use sum().
+    cost = 0.0
+    for assistant in assistants:
+        cost += float(assistant["cost"])
     latest_user = None
     for message in messages:
         if message["value"]["role"] != "user":
@@ -967,7 +973,7 @@ def project_session(
             latest_user["agent"] if latest_user is not None else None
         ),
         "model": source_model,
-        "cost": sum(message["cost"] for message in assistants),
+        "cost": cost,
         "tokens_input": sum(message["tokens"]["input"] for message in assistants),
         "tokens_output": sum(message["tokens"]["output"] for message in assistants),
         "tokens_reasoning": sum(message["tokens"]["reasoning"] for message in assistants),

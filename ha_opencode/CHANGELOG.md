@@ -3,6 +3,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## 3.0.2
+
+- **Fix V1-to-V2 conversation migration ([#122](https://github.com/magnusoverli/opencode/issues/122))** — calculate the session cost total with the same sequential floating-point addition as OpenCode V2. Python's newer `sum()` uses compensated addition and could falsely reject an otherwise intact conversation with `session_projection_mismatch (fields: cost)`. The exact aggregate and individual message checks remain in place; the original state is preserved if any other validation fails.
+
 ## 3.0.1
 
 - **V2 upgrade recovery ([#122](https://github.com/magnusoverli/opencode/issues/122))** — corrected the session validator's ordering of equal-time messages with mixed-case IDs to match OpenCode V2's migration. This can prevent a false `session_projection_mismatch` when a session's agent or model is inferred from its latest user message.

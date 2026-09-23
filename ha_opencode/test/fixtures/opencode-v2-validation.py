@@ -548,6 +548,30 @@ with tempfile.TemporaryDirectory(prefix="opencode-v2-validation-") as temporary:
         assert MIGRATOR.validate_no_credentials(target_path, source_path) == 0
         assert source_path.read_bytes() == source_before
 
+        # Python 3.12+ sum() uses compensated floating-point addition; V2's
+        # JavaScript reduce() adds sequentially. Eleven 0.1-cost assistant
+        # messages yield 1.0999999999999999 in the actual V2 projection.
+        roundoff_user = "msg_000000000050aaaaaaaaaaaaaa"
+        roundoff_rows = [(roundoff_user, "ses_roundoff", 1, 2, json.dumps(user_message()))]
+        for index in range(11):
+            roundoff_rows.append((
+                f"msg_{index + 10:026d}", "ses_roundoff", index + 10, index + 11,
+                json.dumps(assistant_message(roundoff_user, cost=0.1)),
+            ))
+        projected, _, session_projection = MIGRATOR.project_session(
+            {"agent": None, "model": None}, roundoff_rows, []
+        )
+        assert len(projected) == 12
+        assert session_projection["cost"] == 1.0999999999999999
+
+        # Exact comparison remains active; a changed target total is rejected.
+        target.execute("UPDATE session_v2 SET cost=? WHERE id=?", (2.01, compaction_session))
+        target.commit()
+        error = expect_error("session_projection_mismatch", lambda: MIGRATOR.validate_session_projection(source_path, target_path))
+        assert error.fields == ("cost",)
+        target.execute("UPDATE session_v2 SET cost=? WHERE id=?", (2, compaction_session))
+        target.commit()
+
         # Every copied or transformed session field is checked against the same
         # decoded source rows used to validate its projected messages.
         session_mutations = {
