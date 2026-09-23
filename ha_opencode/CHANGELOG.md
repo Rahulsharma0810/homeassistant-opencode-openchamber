@@ -3,6 +3,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## 3.0.4
+
+- **Restore stable decision-note access ([#126](https://github.com/magnusoverli/opencode/issues/126))** — run the stable Home Assistant MCP sidecar with the stable channel and `/homeassistant/opencode` decision-notes directory. Stable `recall_decisions` and `remember_decision` now use the same notes as the stable session briefing; beta's separate notes remain untouched.
+
 ## 3.0.3
 
 - **Correct backup copy counts ([#123](https://github.com/magnusoverli/opencode/issues/123))** — `get_backup_posture` counts Home Assistant backup agents so a local-plus-cloud backup reports both copies. When the Core agent inventory is unavailable, the count is unknown instead of an undercount; storage locations remain omitted.
