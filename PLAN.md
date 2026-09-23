@@ -252,6 +252,19 @@ only to restore supported behavior or correct a demonstrated release blocker.
 
 ### Final-beta follow-up (3.0.0b22)
 
+- Published `beta-v3.0.0b22` on 2026-09-23 from
+  `9b34cecc61dda67a5999c0cde7dc93d2574fdee0` (implementation `ccd1501`, build-context
+  fixture inclusion `9b34cec`); storefront version commit `ed125bc`.
+  PR Checks `35871420141` passed after one unchanged browser-OAuth timeout rerun;
+  native amd64/arm64 checks `35871420111`, initial publication `35872040313`, release
+  `35872963835` and final tag publication `35872963833` all passed.
+  Both `container-images.md` and `image-manifest.txt` are attached to the release;
+  registry inspection agrees with the attached final index:
+  `sha256:68ddbc906b10a0f2b50fd4012b26de576bebbcece3b2e33fc2592971d5b3ae0f`.
+  Final platform manifests: amd64
+  `sha256:c688dee15eceba3bc8265ceb6db3fa7af4575ca3a48d29a1d580ce282c9193cc`, arm64
+  `sha256:1f1b721f86731a9fdf7ead6e7250984e3fbb60bc709b480d561e2dd79f4b948e`.
+  Stable remains `2.5.6`; this publication is the requested final beta candidate.
 - User ended general acceptance testing and requested two targeted OpenChamber
   changes, followed by commit/push and publication of a final beta candidate.
 - Usage root cause verified in pinned preview source: its auth reader resolves
