@@ -55,11 +55,16 @@ the remaining list current instead of accumulating historical plans.
 
 ## Stable-promotion critical path
 
-Release preparation (2026-09-23): user authorized committing, pushing and publishing
-`3.0.0b21` for real Home Assistant qualification. Publish images only after CI and
-native architecture checks pass, then advance the beta storefront via the release
-workflow. Real HAOS beta acceptance contributes to the gates below; it does not
-automatically qualify a separately adopted stable-channel image.
+Release completed (2026-09-23): `beta-v3.0.0b21` tags implementation commit
+`a2540752ea69f783650f66dc1d87307b384ac4e9`. PR Checks `35848521142` and native
+amd64/arm64 image checks `35848521155` passed. Build/publication `35849088283`
+passed before tag push; Create Beta Release `35862139707` then published the
+prerelease and storefront commit `a1c9105`. Tag build `35862139570` also passed
+both native boundary fixtures and publication, attaching `container-images.md`
+and `image-manifest.txt`. Verified final multi-architecture image index:
+`sha256:e3f1303b8be4b8560500f91f9d34a608f10a51cf4444b31ea18fe09f771c25cb`.
+Stable remains `2.5.6`. Real HAOS beta acceptance contributes to the gates below;
+it does not automatically qualify a separately adopted stable-channel image.
 
 Scope directive (2026-09-23): focus solely on promotion to stable `3.0.0`.
 Use the gates below to prioritize the detailed work items. Add implementation
