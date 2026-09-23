@@ -105,6 +105,8 @@ import {
 import { createNativeMcpHandler } from "./lib/native-mcp-handler.js";
 import { formatErrorLogResult, readErrorLogWithFallback } from "./lib/ha-error-log.js";
 import { createSupervisorAppsClient } from "./lib/supervisor-apps.js";
+import { saveHabOutput } from "./lib/hab-output.js";
+import { createCommandOutputContent } from "./lib/command-output.js";
 import {
   ESPHomeDeviceBuilderClient,
   createESPHomeConfig,
@@ -2349,7 +2351,6 @@ function cacheHistory(key, history, createdAt) {
 }
 const DOCS_MAX_CHARS = 12000;
 const CHANGELOG_MAX_CHARS = 16000;
-const CLI_OUTPUT_MAX_CHARS = 20000;
 // Statistics and forecast responses are the large ones; generous enough to hold
 // a useful window without letting a single call swamp the context.
 const SERVICE_RESPONSE_MAX_CHARS = 20000;
@@ -3873,7 +3874,7 @@ const TOOLS = [
   {
     name: "hab_run",
     title: "Run hab CLI Command",
-    description: "Run a Home Assistant Builder (hab) CLI command for dashboards, area/floor/zone/label/person/category management, helpers, backups, blueprints, calendars, todo lists, notifications, integrations, repairs, events, templates, devices, and search. Automation/script/scene API CRUD is available when specifically needed, but configuration edits default to YAML + write_config_safe followed by an approved domain reload via call_service and read-only verification. Needing a reload is not a reason to switch to API editing. Check 'automation --help' and subcommand help for supported payload/file options; do not guess flags or improvise JSON quoting. Output is human-readable by default; add --json for structured output. Examples: 'entity list --domain light --json', 'area create Kitchen', 'integration reload hue', 'repairs list --json'. Run 'help' for command groups.",
+    description: "Run a Home Assistant Builder (hab) CLI command for dashboards, area/floor/zone/label/person/category management, helpers, backups, blueprints, calendars, todo lists, notifications, integrations, repairs, events, templates, devices, and search. Automation/script/scene API CRUD is available when specifically needed, but configuration edits default to YAML + write_config_safe followed by an approved domain reload via call_service and read-only verification. Needing a reload is not a reason to switch to API editing. Check 'automation --help' and subcommand help for supported payload/file options; do not guess flags or improvise JSON quoting. Output is human-readable by default; add --json for structured output. When meta.truncated is true, meta.full_output_path contains the complete temporary output; never write a dashboard reconstructed from the preview. Examples: 'entity list --domain light --json', 'area create Kitchen', 'integration reload hue', 'repairs list --json'. Run 'help' for command groups.",
     inputSchema: {
       type: "object",
       properties: {
@@ -4214,40 +4215,6 @@ function createCompactJsonContent(summary, data, meta = {}, options = {}) {
     audience: options.audience || ["assistant"],
     priority: options.priority ?? 0.7,
   });
-}
-
-function createCommandOutputContent(toolName, command, output, options = {}) {
-  const text = String(output ?? "").trim();
-  const baseMeta = { tool: toolName, command };
-
-  try {
-    const parsed = JSON.parse(text);
-    const rawJson = JSON.stringify(parsed);
-    if (rawJson.length <= CLI_OUTPUT_MAX_CHARS) {
-      return createCompactJsonContent(
-        `${toolName} command completed`,
-        parsed,
-        { ...baseMeta, format: "json", truncated: false, original_chars: rawJson.length },
-        options
-      );
-    }
-
-    const truncated = truncateText(rawJson, { maxChars: CLI_OUTPUT_MAX_CHARS });
-    return createCompactJsonContent(
-      `${toolName} command completed with large JSON output`,
-      { raw_json_preview: truncated.text },
-      { ...baseMeta, format: "json", ...truncated, text: undefined },
-      options
-    );
-  } catch {
-    const truncated = truncateText(text, { maxChars: CLI_OUTPUT_MAX_CHARS });
-    return createCompactJsonContent(
-      `${toolName} command completed`,
-      { output: truncated.text },
-      { ...baseMeta, format: "text", ...truncated, text: undefined },
-      options
-    );
-  }
 }
 
 // ============================================================================
@@ -7027,7 +6994,10 @@ async function handleToolCall(request) {
         }
         
         return makeCompatibleResponse({
-          content: [createCommandOutputContent("hab", command, result, { audience: ["user", "assistant"], priority: 0.7 })],
+          content: [createCommandOutputContent("hab", command, result, {
+            audience: ["user", "assistant"], priority: 0.7,
+            saveLargeOutput: saveHabOutput,
+          })],
         });
       }
 

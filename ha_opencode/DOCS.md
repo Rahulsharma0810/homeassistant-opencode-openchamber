@@ -380,6 +380,13 @@ The server and terminal start from a root-owned project directory, so `.opencode
 content in `/homeassistant` is not discovered as project plugins. The root server
 accesses HA files directly; the attached terminal runs as UID `60001`.
 
+For large storage-mode dashboards, `hab_run` keeps its inline preview at 20,000
+characters. If `meta.truncated` is true, `meta.full_output_path` is the complete
+result in a private file under the runtime workspace. Use the agent's server-side
+tools to inspect and transform that file before a whole-config dashboard write;
+never save a reconstruction from the preview. Files older than 24 hours are
+pruned on subsequent exports, and a container restart clears them.
+
 OpenChamber is built from preview `2.0.0-preview.8`, source commit
 `9fba129ddf968df1e5fb6916b84d3ceb35493198`. Its web package reports upstream
 version `1.24.2`; the immutable source identifies this V2 preview. Its client
