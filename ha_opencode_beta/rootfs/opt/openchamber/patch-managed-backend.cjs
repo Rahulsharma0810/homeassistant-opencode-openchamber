@@ -23,4 +23,13 @@ patch("proxy.js", "if (!hasParsedBodyValue(req.body) && originalContentLength <=
   "if (!hasParsedBodyValue(req.body) && originalContentLength <= 0 && !req.headers?.['transfer-encoding']) return null;");
 patch("proxy.js", "proxyReq.setHeader('content-length', String(body.length));",
   "proxyReq.removeHeader('transfer-encoding');\n    proxyReq.setHeader('content-length', String(body.length));");
+// LAN authentication is scoped to one app activation. init recreates this
+// private runtime directory on restart, invalidating cookies and paired clients
+// together while retaining all persistent UI settings and conversation data.
+patch("../../index.js", "const REMOTE_CLIENTS_FILE_PATH = path.join(OPENCHAMBER_DATA_DIR, 'remote-clients.json');",
+  "const REMOTE_CLIENTS_FILE_PATH = path.join(process.env.OPENCHAMBER_AUTH_DIR || OPENCHAMBER_DATA_DIR, 'remote-clients.json');");
+patch("../../index.js", "const CLIENT_PAIRING_SESSIONS_FILE_PATH = path.join(OPENCHAMBER_DATA_DIR, 'client-pairing-sessions.json');",
+  "const CLIENT_PAIRING_SESSIONS_FILE_PATH = path.join(process.env.OPENCHAMBER_AUTH_DIR || OPENCHAMBER_DATA_DIR, 'client-pairing-sessions.json');");
+patch("../ui-auth/ui-auth.js", "const JWT_SECRET_FILE = path.join(OPENCHAMBER_DATA_DIR, 'jwt-secret');",
+  "const JWT_SECRET_FILE = path.join(process.env.OPENCHAMBER_AUTH_DIR || OPENCHAMBER_DATA_DIR, 'jwt-secret');");
 console.log("OpenChamber uses the app-owned backend and process-private authentication");

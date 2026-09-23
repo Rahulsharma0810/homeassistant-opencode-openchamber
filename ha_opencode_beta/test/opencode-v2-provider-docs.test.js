@@ -21,3 +21,18 @@ test("the documented custom-provider example passes the pinned native validator"
   assert.equal(prepared.config.providers.custom.settings.apiKey, "{env:CUSTOM_API_KEY}");
   assert.equal(prepared.config.providers.custom.settings.baseURL, "https://provider.example/v1");
 });
+
+test("the documented search selection passes native validation with a separately staged key", async () => {
+  const root = path.join(__dirname, "..");
+  const { prepareUserConfig } = await import(pathToFileURL(path.join(root, "rootfs/opt/opencode-v2-homeassistant/user-config.js")));
+  const docs = fs.readFileSync(path.join(root, "DOCS.md"), "utf8");
+  const section = docs.split("### Web search selection")[1];
+  const example = /```json\s*([\s\S]*?)```/.exec(section)?.[1];
+  assert.ok(example, "The search guide must include a native JSON example");
+  const result = prepareUserConfig({ opencode_config: example,
+    env_vars: [{ name: "TAVILY_API_KEY", value: "synthetic-search-fixture" }],
+  });
+  assert.deepEqual(result.config.websearch, { provider: "tavily" });
+  assert.equal(result.providerEnvironment.toString(), "TAVILY_API_KEY=synthetic-search-fixture\0");
+  assert.ok(!JSON.stringify(result.config).includes("synthetic-search-fixture"));
+});

@@ -41,6 +41,23 @@ describe("bounded native V2 provider configuration", () => {
     assert.equal(empty.providerEnvironment.length, 0);
   });
 
+  it("preserves native search selection and forwards each documented search key without embedding it in config", () => {
+    for (const provider of ["exa", "firecrawl", "parallel", "tavily", "random"]) {
+      const name = provider === "random" ? "TAVILY_API_KEY" : `${provider.toUpperCase()}_API_KEY`;
+      const result = prepareUserConfig({
+        opencode_config: JSON.stringify({ websearch: { provider } }),
+        env_vars: [{ name, value: fixtureKey }],
+      });
+      assert.deepEqual(result.config.websearch, { provider });
+      assert.equal(result.providerEnvironment.toString(), `${name}=${fixtureKey}\0`);
+      assert.ok(!JSON.stringify(result.config).includes(fixtureKey));
+      // Missing env keys must still permit the native account sign-in path.
+      assert.deepEqual(prepareUserConfig({ opencode_config: JSON.stringify(result.config) }).config, result.config);
+    }
+    assert.deepEqual(prepareUserConfig(options({ websearch: false })).config, { websearch: false });
+    assert.equal(prepareUserConfig().config.websearch, undefined);
+  });
+
   it("uses last duplicate env value without shell evaluation and warns on unsupported backend variables", () => {
     const warnings = [];
     const prepared = prepareUserConfig({ env_vars: [
@@ -75,6 +92,11 @@ describe("bounded native V2 provider configuration", () => {
     ["permission bypass", { permissions: [{ action: "*", resource: "*", effect: "allow" }] }],
     ["read-only agent override", { agents: { [READ_ONLY_AGENT_ID]: { permissions: [] } } }],
     ["runtime update", { update: "auto" }],
+    ["unknown search provider", { websearch: { provider: "custom" } }],
+    ["search without selection", { websearch: {} }],
+    ["search true shorthand", { websearch: true }],
+    ["search endpoint override", { websearch: { provider: "tavily", baseURL: "https://example.invalid" } }],
+    ["search key in config", { websearch: { provider: "tavily", apiKey: fixtureKey } }],
     ["LSP enable", { lsp: true }],
     ["external provider code", { providers: { fixture: { package: "file:///tmp/plugin" } } }],
     ["external model code", { providers: { fixture: { models: { coding: { package: "evil-package" } } } } }],
@@ -138,7 +160,7 @@ describe("bounded native V2 provider configuration", () => {
     try {
       const input = join(root, "options.json");
       const output = join(root, "provider-env");
-      const raw = options({ model: "fixture/coding", providers: { fixture: nativeProvider() }, formatter: false });
+      const raw = options({ model: "fixture/coding", providers: { fixture: nativeProvider() }, formatter: false, websearch: { provider: "tavily" } });
       await writeFile(input, JSON.stringify(raw));
       const run = () => spawnSync(process.execPath, [generator, "--options-file", input, "--environment-output", output], { encoding: "utf8" });
       const result = run();
@@ -148,6 +170,7 @@ describe("bounded native V2 provider configuration", () => {
       for (const field of ["plugins", "permissions", "agents", "snapshots", "lsp", "skills", "autoupdate", "share"]) assert.deepEqual(config[field], base[field]);
       assert.equal(config.model, "fixture/coding");
       assert.equal(config.formatter, false);
+      assert.deepEqual(config.websearch, { provider: "tavily" });
       assert.equal(await readFile(output, "utf8"), `FIXTURE_API_KEY=${fixtureKey}\0`);
       assert.ok(!(result.stdout + result.stderr).includes(fixtureKey));
       assert.deepEqual(JSON.parse(await readFile(input, "utf8")), raw);

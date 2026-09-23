@@ -10,6 +10,15 @@ const children = new Set();
 const requests = [];
 let mockServer;
 let supervisorBaseUrl;
+const jobFixtures = [
+  { uuid: "empty-errors", name: "empty-errors", done: true, errors: [], progress: 100,
+    child_jobs: [{ name: "successful-child", done: true, errors: [], progress: 100 }] },
+  { uuid: "null-errors", name: "null-errors", done: true, errors: null, progress: 100 },
+  { uuid: "omitted-errors", name: "omitted-errors", done: true, progress: 100 },
+  { uuid: "actual-failure", name: "actual-failure", done: true, errors: [{ message: "Fixture failure" }], progress: 100,
+    child_jobs: [{ name: "failed-child", done: true, errors: [{ message: "Child failure" }], progress: 100 }] },
+  { uuid: "still-running", name: "still-running", done: false, errors: [], progress: 50 },
+];
 
 function sendJson(response, data) {
   response.writeHead(200, { "content-type": "application/json" });
@@ -23,6 +32,8 @@ function sendText(response, text) {
 
 function supervisorResponse(request, response) {
   requests.push(request.url);
+  const job = jobFixtures.find((item) => request.url === `/jobs/${item.uuid}`);
+  if (job) return sendJson(response, job);
   switch (request.url.split("?")[0]) {
     case "/supervisor/info":
       return sendJson(response, { version: "2026.07.5", healthy: true, supported: true, ip_address: "192.168.5.33" });
@@ -43,7 +54,7 @@ function supervisorResponse(request, response) {
         checks: [{ slug: "check_disk", enabled: true }],
       });
     case "/jobs/info":
-      return sendJson(response, { jobs: [{ done: false, errors: [{ message: "password=private" }] }] });
+      return sendJson(response, { jobs: jobFixtures });
     case "/backups/info":
       return sendJson(response, {
         days_until_stale: 4,
@@ -282,6 +293,31 @@ describe("Supervisor operations MCP tools", () => {
     expect(result.isError).toBe(true);
     expect(result.content[0].text).toContain("valid Supervisor app slug");
     expect(requests).toHaveLength(before);
+  }, TIMEOUT_MS + 5_000);
+
+  it("reports consistent job outcomes across health, listings, progress and child jobs", async () => {
+    const [healthResult, listing, ...progress] = await callMcpSequence("full", [
+      { name: "get_supervisor_health" }, { name: "get_running_jobs" },
+      ...jobFixtures.map((job) => ({ name: "get_update_progress", arguments: { job_id: job.uuid } })),
+    ]);
+    expect(parsePayload(healthResult).data.jobs).toEqual({ total: 5, active: 1, completed: 4, failed: 1 });
+    const text = listing.content[0].text;
+    for (const name of ["empty-errors", "null-errors", "omitted-errors"]) {
+      expect(text.split("\n").find((line) => line.includes(`| ${name} |`))).toContain("Success");
+    }
+    expect(text.split("\n").find((line) => line.includes("| actual-failure |"))).toContain("Failed");
+    for (let i = 0; i < progress.length; i++) {
+      const response = progress[i];
+      const failed = i === 3;
+      expect(response.isError).not.toBe(true);
+      expect(response.content[0].text).toContain(i === 4 ? "In Progress" : failed ? "Failed" : "Completed");
+      expect(response.content[0].text.includes("## Errors")).toBe(failed);
+      expect(JSON.parse(response.content[1].text).meta.has_errors).toBe(failed);
+    }
+    const successfulChild = progress[0].content[0].text.split("\n").find((line) => line.includes("successful-child"));
+    const failedChild = progress[3].content[0].text.split("\n").find((line) => line.includes("failed-child"));
+    expect(successfulChild).toContain("âœ…");
+    expect(failedChild).toContain("âŒ");
   }, TIMEOUT_MS + 5_000);
 
   it("coalesces repeat metrics reads within one MCP session", async () => {

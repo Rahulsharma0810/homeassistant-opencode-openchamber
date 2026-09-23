@@ -27,6 +27,11 @@ int main(int argc, char **argv) {
   if (getenv("SUPERVISOR_TOKEN") || getenv("OPENCODE_CONFIG_CONTENT") || getenv("PPQ_API_KEY")) return 3;
   const char *key = getenv("FIXTURE_API_KEY");
   if (argc == 3 ? key != NULL : (!key || strcmp(key, "fixture-key-$'backtick=literal") != 0)) return 4;
+  const char *search_keys[] = {"EXA_API_KEY", "FIRECRAWL_API_KEY", "PARALLEL_API_KEY", "TAVILY_API_KEY", NULL};
+  for (int i = 0; search_keys[i]; i++) {
+    const char *value = getenv(search_keys[i]);
+    if (argc == 3 ? value != NULL : (!value || strcmp(value, "fixture-search-key") != 0)) return 6;
+  }
   if (strcmp(getenv("OPENCODE_DISABLE_PROJECT_CONFIG"), "1") != 0) return 5;
   return 0;
 }
@@ -42,7 +47,10 @@ int main(int argc, char **argv) {
     assert.match(missing.stderr, /provider environment is not a secured root-owned file/);
     await writeFile(file, "", { mode: 0o600 });
     assert.equal(run(true).status, 0, "an explicit secured empty environment is valid");
-    const valid = prepareUserConfig({ env_vars: [{ name: "FIXTURE_API_KEY", value: "fixture-key-$'backtick=literal" }] }).providerEnvironment;
+    const valid = prepareUserConfig({ env_vars: [
+      { name: "FIXTURE_API_KEY", value: "fixture-key-$'backtick=literal" },
+      ...["EXA", "FIRECRAWL", "PARALLEL", "TAVILY"].map((provider) => ({ name: `${provider}_API_KEY`, value: "fixture-search-key" })),
+    ] }).providerEnvironment;
     await writeFile(file, valid, { mode: 0o600 });
     assert.equal(run().status, 0);
 

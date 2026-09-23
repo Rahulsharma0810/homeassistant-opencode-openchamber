@@ -7,7 +7,7 @@ import { Schema } from "effect";
 // These are locked dependencies of the pinned plugin package already shipped in
 // the image. The actual V2 decoder validates nested fields, not a V1 facsimile.
 const decodeConfig = Schema.decodeUnknownSync(Config.Info, { onExcessProperty: "error" });
-const ROOT_FIELDS = ["$schema", "model", "default_agent", "providers", "formatter", "compaction", "media", "tool_output"];
+const ROOT_FIELDS = ["$schema", "model", "default_agent", "providers", "formatter", "compaction", "media", "tool_output", "websearch"];
 const PACKAGES = new Set([
   "openai", "openai/chat", "openai/responses", "openai-compatible",
   "openai-compatible/responses", "anthropic", "anthropic-compatible", "google",
@@ -131,6 +131,11 @@ export function prepareUserConfig(options = {}, { warn = () => {} } = {}) {
   if (config.model !== undefined && (typeof config.model !== "string" || !/^[^\s/#]+\/[^\s#]+$/.test(config.model))) invalid("model must be a provider/model string without a variant");
   if (config.default_agent !== undefined && !["build", "plan", "home-assistant-read-only"].includes(config.default_agent)) invalid("default_agent must be build, plan, or home-assistant-read-only");
   if (config.formatter !== undefined && typeof config.formatter !== "boolean") invalid("only boolean formatter overrides are currently supported");
+  // Native WebSearch.ID is an extensible string; this image ships only these
+  // documented providers and does not permit user-loaded provider plugins.
+  if (config.websearch && !["exa", "firecrawl", "parallel", "tavily", "random"].includes(config.websearch.provider)) {
+    invalid("websearch.provider must be exa, firecrawl, parallel, tavily or random; use websearch: false to disable search");
+  }
   if (config.providers !== undefined) {
     object(config.providers, "providers");
     for (const [id, provider] of Object.entries(config.providers)) {

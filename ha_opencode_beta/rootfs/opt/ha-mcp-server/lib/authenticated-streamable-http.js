@@ -149,7 +149,7 @@ function authorityFor(host, port) {
 
 /** Start an authenticated, loopback-only Streamable HTTP MCP endpoint. */
 export async function startAuthenticatedStreamableHttp(
-  mcpServer,
+  createMcpServer,
   {
     secretFile,
     host = "127.0.0.1",
@@ -157,8 +157,13 @@ export async function startAuthenticatedStreamableHttp(
     socketPath,
     publicHost,
     jsonRpcHandlers = {},
+    maxSessions = 32,
+    sessionIdleMs = 30 * 60_000,
   } = {},
 ) {
+  if (typeof createMcpServer !== "function") throw new Error("An MCP server factory is required");
+  if (!Number.isInteger(maxSessions) || maxSessions < 1 ||
+      !Number.isInteger(sessionIdleMs) || sessionIdleMs < 1) throw new Error("Invalid MCP session limits");
   if (socketPath) {
     if (!isAbsolute(socketPath)) throw new Error("Streamable HTTP socket path must be absolute");
     if (!publicHost) throw new Error("Streamable HTTP public Host is required for a Unix socket");
@@ -178,7 +183,10 @@ export async function startAuthenticatedStreamableHttp(
   let expectedHost;
   let closing = false;
   let closePromise;
-  let activeTransport;
+  // A Protocol/Server instance owns request IDs and abort controllers. Sharing
+  // one between clients also shares their cancellations and cannot be made safe
+  // merely by keeping multiple HTTP transports.
+  const sessions = new Map();
   let initializeQueue = Promise.resolve();
   const activeJsonRpcControllers = new Set();
 
@@ -204,9 +212,9 @@ export async function startAuthenticatedStreamableHttp(
       sendJson(response, 404, "Not found");
       return;
     }
-    if (request.method !== "POST") {
+    if (request.method !== "POST" && !(request.url === MCP_PATH && request.method === "DELETE")) {
       request.resume();
-      sendJson(response, 405, "Method not allowed", { allow: "POST" });
+      sendJson(response, 405, "Method not allowed", { allow: request.url === MCP_PATH ? "POST, DELETE" : "POST" });
       return;
     }
     if (!hasValidAuthorization(request.headers.authorization, expectedAuthorization)) {
@@ -216,6 +224,14 @@ export async function startAuthenticatedStreamableHttp(
     }
 
     try {
+      if (request.method === "DELETE") {
+        request.resume();
+        const session = sessions.get(request.headers["mcp-session-id"]);
+        if (!session) { sendJson(response, 404, "MCP session not found"); return; }
+        await session.server.close();
+        response.writeHead(200, { "cache-control": "no-store" }).end();
+        return;
+      }
       const parsed = await readJsonBody(request);
       if (parsed.tooLarge) {
         sendJson(response, 413, "Request body too large");
@@ -248,17 +264,39 @@ export async function startAuthenticatedStreamableHttp(
       }
       if (isInitializeRequest(parsed.body)) {
         const initialize = async () => {
-          if (activeTransport) await activeTransport.close();
+          if (closing) { sendJson(response, 503, "Server shutting down"); return; }
+          // Reclaim only idle sessions; never evict an in-flight tool call to
+          // make room for another client. Explicit DELETE releases immediately.
+          for (const session of sessions.values()) {
+            if (session.inFlight === 0 && Date.now() - session.lastUsed >= sessionIdleMs) await session.server.close();
+          }
+          if (sessions.size >= maxSessions) {
+            sendJson(response, 503, "MCP session capacity reached", { "retry-after": "60" });
+            return;
+          }
+          const server = createMcpServer();
+          const session = { server, transport: null, inFlight: 1, lastUsed: Date.now() };
           const transport = new StreamableHTTPServerTransport({
             sessionIdGenerator: randomUUID,
             enableJsonResponse: true,
+            onsessioninitialized: (id) => sessions.set(id, session),
           });
+          session.transport = transport;
           transport.onclose = () => {
-            if (activeTransport === transport) activeTransport = undefined;
+            sessions.delete(transport.sessionId);
           };
-          await mcpServer.connect(transport);
-          activeTransport = transport;
-          await transport.handleRequest(request, response, parsed.body);
+          try {
+            await server.connect(transport);
+            if (closing) { await server.close(); sendJson(response, 503, "Server shutting down"); return; }
+            await transport.handleRequest(request, response, parsed.body);
+            if (!transport.sessionId) await server.close();
+          } catch (error) {
+            await server.close();
+            throw error;
+          } finally {
+            session.inFlight--;
+            session.lastUsed = Date.now();
+          }
         };
         const currentInitialize = initializeQueue.then(initialize);
         initializeQueue = currentInitialize.catch(() => {});
@@ -266,11 +304,19 @@ export async function startAuthenticatedStreamableHttp(
         return;
       }
 
-      if (!activeTransport) {
-        sendJson(response, 400, "MCP session is not initialized");
+      const id = request.headers["mcp-session-id"];
+      const session = sessions.get(id);
+      if (!session) {
+        sendJson(response, id ? 404 : 400, "MCP session is not initialized");
         return;
       }
-      await activeTransport.handleRequest(request, response, parsed.body);
+      session.inFlight++;
+      try {
+        await session.transport.handleRequest(request, response, parsed.body);
+      } finally {
+        session.inFlight--;
+        session.lastUsed = Date.now();
+      }
     } catch {
       if (!response.headersSent) sendJson(response, 500, "Internal server error");
       else response.destroy();
@@ -302,7 +348,6 @@ export async function startAuthenticatedStreamableHttp(
     });
   } catch (error) {
     expectedAuthorization.fill(0);
-    await mcpServer.close().catch(() => {});
     throw error;
   }
 
@@ -324,7 +369,8 @@ export async function startAuthenticatedStreamableHttp(
             httpServer.close((error) => (error ? reject(error) : resolve()));
             httpServer.closeIdleConnections?.();
           });
-          await mcpServer.close();
+          await initializeQueue.catch(() => {});
+          await Promise.allSettled([...sessions.values()].map((session) => session.server.close()));
           await Promise.race([
             closed,
             new Promise((resolve) => setTimeout(resolve, SHUTDOWN_GRACE_MS)),

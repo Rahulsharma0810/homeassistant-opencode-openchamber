@@ -1,4 +1,5 @@
 import { constants, openSync, fstatSync, readSync, closeSync } from "node:fs";
+import { readLanConfig } from "../opencode-v2-homeassistant/lan-config.js";
 
 // s6 starts Node with the app's native non-dumpable constructor before any secret
 // is read. Only the preview's process-owned auth state receives this credential.
@@ -27,9 +28,11 @@ function credential() {
 try {
   if (process.getuid() !== 0 || process.env.OPENCODE_HOST !== "http://127.0.0.1:4100" || process.env.OPENCODE_SKIP_START !== "true") throw new Error();
   globalThis[key] = credential();
+  const lan = readLanConfig();
+  if (lan.uiEnabled) process.env.OPENCHAMBER_AUTH_DIR = "/run/opencode-v2/openchamber-auth";
   const { startWebUiServer } = await import("/opt/openchamber-preview/packages/web/server/index.js");
   delete globalThis[key];
-  await startWebUiServer({ port: 3010, host: "127.0.0.1" });
+  await startWebUiServer({ port: 3010, host: "127.0.0.1", ...(lan.uiEnabled ? { uiPassword: lan.password } : {}) });
 } catch {
   delete globalThis[key];
   console.error("OpenChamber could not attach to the managed V2 backend; inspect the app status");

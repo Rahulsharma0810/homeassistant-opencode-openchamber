@@ -18,13 +18,14 @@ afterEach(async () => {
   vi.restoreAllMocks();
 });
 
-async function startTestServer({ callDelayMs = 0, callHandler, jsonRpcHandlers = {} } = {}) {
+async function startTestServer({ callDelayMs = 0, callHandler, jsonRpcHandlers = {}, ...sessionLimits } = {}) {
   const directory = await mkdtemp(join(tmpdir(), "ha-mcp-http-"));
   temporaryDirectories.push(directory);
   const secretFile = join(directory, "secret");
   await writeFile(secretFile, `${SECRET}\n`, { mode: 0o600 });
   await chmod(secretFile, 0o600);
 
+  const createMcpServer = () => {
   const mcpServer = new Server(
     { name: "transport-test", version: "1.0.0" },
     { capabilities: { tools: { listChanged: false } } },
@@ -45,11 +46,14 @@ async function startTestServer({ callDelayMs = 0, callHandler, jsonRpcHandlers =
     return { content: [{ type: "text", text: "complete" }] };
   });
 
-  const listener = await startAuthenticatedStreamableHttp(mcpServer, {
+  return mcpServer;
+  };
+  const listener = await startAuthenticatedStreamableHttp(createMcpServer, {
     secretFile,
     host: "127.0.0.1",
     port: 0,
     jsonRpcHandlers,
+    ...sessionLimits,
   });
   openListeners.push(listener);
   return `http://${listener.host}:${listener.port}`;
@@ -247,6 +251,38 @@ describe("authenticated Streamable HTTP transport", () => {
     }
   });
 
+  it("keeps an in-flight call and both client sessions alive when another client initializes", async () => {
+    let release;
+    let started;
+    const gate = new Promise((resolve) => { release = resolve; });
+    const entered = new Promise((resolve) => { started = resolve; });
+    const baseUrl = await startTestServer({ callHandler: async () => {
+      started();
+      await gate;
+      return { content: [{ type: "text", text: "original-client-result" }] };
+    } });
+    const clients = ["first", "second"].map((name) => new Client({ name, version: "1" }));
+    const transports = clients.map(() => new StreamableHTTPClientTransport(new URL(`${baseUrl}/mcp`), {
+      requestInit: { headers: { authorization: `Bearer ${SECRET}` } },
+    }));
+    try {
+      await clients[0].connect(transports[0]);
+      const pending = clients[0].callTool({ name: "test_tool", arguments: {} }, undefined,
+        { signal: AbortSignal.timeout(3000) }).then((value) => ({ value }), (error) => ({ error }));
+      await entered;
+      await clients[1].connect(transports[1]);
+      release();
+      const outcome = await pending;
+      expect(outcome.error).toBeUndefined();
+      expect(outcome.value.content[0].text).toBe("original-client-result");
+      const catalogs = await Promise.all(clients.map((client) => client.listTools()));
+      expect(catalogs.map((catalog) => catalog.tools.length)).toEqual([1, 1]);
+    } finally {
+      release();
+      await Promise.allSettled(clients.map((client) => client.close()));
+    }
+  }, 6000);
+
   it("rejects the wrong path and every Origin header", async () => {
     const baseUrl = await startTestServer();
     const authorized = {
@@ -261,6 +297,99 @@ describe("authenticated Streamable HTTP transport", () => {
 
     expect(wrongPath.status).toBe(404);
     expect(origin.status).toBe(403);
+  });
+
+  it("bounds sessions without evicting clients and releases only the explicitly terminated session", async () => {
+    const baseUrl = await startTestServer({ maxSessions: 2 });
+    const clients = [0, 1].map((i) => new Client({ name: `bounded-${i}`, version: "1" }));
+    const transports = clients.map(() => new StreamableHTTPClientTransport(new URL(`${baseUrl}/mcp`), {
+      requestInit: { headers: { authorization: `Bearer ${SECRET}` } },
+    }));
+    const initialize = { ...initializeRequest(), headers: { ...initializeRequest().headers, authorization: `Bearer ${SECRET}` } };
+    try {
+      await Promise.all(clients.map((client, i) => client.connect(transports[i])));
+      expect((await fetch(`${baseUrl}/mcp`, initialize)).status).toBe(503);
+      expect((await clients[0].listTools()).tools).toHaveLength(1);
+      const id = transports[0].sessionId;
+      expect((await fetch(`${baseUrl}/mcp`, { method: "DELETE", headers: { "mcp-session-id": id } })).status).toBe(401);
+      await transports[0].terminateSession();
+      expect((await clients[1].listTools()).tools).toHaveLength(1);
+      expect((await fetch(`${baseUrl}/mcp`, { method: "DELETE", headers: {
+        authorization: `Bearer ${SECRET}`, "mcp-session-id": id,
+      } })).status).toBe(404);
+      expect((await fetch(`${baseUrl}/mcp`, initialize)).status).toBe(200);
+    } finally { await Promise.allSettled(clients.map((client) => client.close())); }
+  });
+
+  it("keeps cancellation scoped to its client even when request IDs collide", async () => {
+    const active = new Map();
+    let entered;
+    const bothStarted = new Promise((resolve) => { entered = resolve; });
+    const aborted = [];
+    const baseUrl = await startTestServer({ callHandler: (request, extra) => new Promise((resolve) => {
+      const label = request.params.arguments.label;
+      active.set(label, () => resolve({ content: [{ type: "text", text: label }] }));
+      extra.signal.addEventListener("abort", () => { aborted.push(label); active.get(label)(); }, { once: true });
+      if (active.size === 2) entered();
+    }) });
+    const clients = ["cancel", "keep"].map((name) => new Client({ name, version: "1" }));
+    const controllers = clients.map(() => new AbortController());
+    try {
+      for (const client of clients) await client.connect(new StreamableHTTPClientTransport(new URL(`${baseUrl}/mcp`), {
+        requestInit: { headers: { authorization: `Bearer ${SECRET}` } },
+      }));
+      const calls = clients.map((client, i) => client.callTool({ name: "test_tool", arguments: { label: i ? "keep" : "cancel" } }, undefined,
+        { signal: controllers[i].signal }).then((value) => ({ value }), (error) => ({ error })));
+      await bothStarted;
+      controllers[0].abort("cancel-one");
+      expect((await calls[0]).error).toBeDefined();
+      await vi.waitFor(() => expect(aborted).toEqual(["cancel"]));
+      active.get("keep")();
+      expect((await calls[1]).value.content[0].text).toBe("keep");
+      expect((await clients[1].listTools()).tools).toHaveLength(1);
+    } finally {
+      for (const finish of active.values()) finish();
+      await Promise.allSettled(clients.map((client) => client.close()));
+    }
+  });
+
+  it("reclaims idle sessions on initialization but preserves calls past the idle threshold", async () => {
+    let release;
+    let entered;
+    const started = new Promise((resolve) => { entered = resolve; });
+    const baseUrl = await startTestServer({ maxSessions: 1, sessionIdleMs: 1000,
+      callHandler: () => new Promise((resolve) => {
+        release = () => resolve({ content: [{ type: "text", text: "preserved" }] });
+        entered();
+      }),
+    });
+    const client = new Client({ name: "idle-test", version: "1" });
+    const transport = new StreamableHTTPClientTransport(new URL(`${baseUrl}/mcp`), {
+      requestInit: { headers: { authorization: `Bearer ${SECRET}` } },
+    });
+    const initialize = { ...initializeRequest(), headers: { ...initializeRequest().headers, authorization: `Bearer ${SECRET}` } };
+    try {
+      await client.connect(transport);
+      const pending = client.callTool({ name: "test_tool", arguments: {} }, undefined,
+        { signal: AbortSignal.timeout(3000) }).then((value) => ({ value }), (error) => ({ error }));
+      await started;
+      const now = Date.now();
+      const clock = vi.spyOn(Date, "now").mockReturnValue(now + 2000);
+      expect((await fetch(`${baseUrl}/mcp`, initialize)).status).toBe(503);
+      release();
+      expect((await pending).value?.content[0].text).toBe("preserved");
+      await client.listTools();
+      clock.mockReturnValue(now + 4000);
+      const replacement = await fetch(`${baseUrl}/mcp`, initialize);
+      expect(replacement.status).toBe(200);
+      expect(replacement.headers.get("mcp-session-id")).not.toBe(transport.sessionId);
+      expect((await fetch(`${baseUrl}/mcp`, { method: "DELETE", headers: {
+        authorization: `Bearer ${SECRET}`, "mcp-session-id": transport.sessionId,
+      } })).status).toBe(404);
+    } finally {
+      release?.();
+      await client.close();
+    }
   });
 
   it("does not disclose the bearer secret in responses or logs", async () => {

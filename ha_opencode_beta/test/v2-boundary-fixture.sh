@@ -17,23 +17,24 @@ NATIVE_PID=""
 PROXY_PID=""
 BROKER_PID=""
 SECURE_PID=""
+PROVIDER_PID=""
 
 cleanup() {
     local status=$?
     trap - EXIT INT TERM ERR
     set +e
     if [ "${status}" -ne 0 ]; then
-        for log in native sidecar proxy broker v2; do
+        for log in native sidecar proxy broker v2 provider; do
             if [ -s "${BOUNDARY_ROOT}/${log}.log" ]; then
                 printf '\n--- %s.log ---\n' "${log}" >&2
                 cat "${BOUNDARY_ROOT}/${log}.log" >&2
             fi
         done
     fi
-    for pid in "${SIDECAR_PID}" "${NATIVE_PID}" "${SECURE_PID}" "${PROXY_PID}" "${BROKER_PID}"; do
+    for pid in "${SIDECAR_PID}" "${NATIVE_PID}" "${SECURE_PID}" "${PROXY_PID}" "${BROKER_PID}" "${PROVIDER_PID}"; do
         [ -n "${pid}" ] && kill "${pid}" 2>/dev/null
     done
-    for pid in "${SIDECAR_PID}" "${NATIVE_PID}" "${SECURE_PID}" "${PROXY_PID}" "${BROKER_PID}"; do
+    for pid in "${SIDECAR_PID}" "${NATIVE_PID}" "${SECURE_PID}" "${PROXY_PID}" "${BROKER_PID}" "${PROVIDER_PID}"; do
         [ -n "${pid}" ] && wait "${pid}" 2>/dev/null
     done
     rm -rf "${BOUNDARY_ROOT}"
@@ -93,10 +94,6 @@ chown -R 60000:60000 "${GENERATION_ROOT}" "${CACHE_ROOT}"
 printf '%s\n' private > "${BOUNDARY_ROOT}/private/sentinel"
 printf '%064d' 0 > "${RUNTIME_ROOT}/sidecar-secret"
 printf '%064d' 1 > "${RUNTIME_ROOT}/server-password"
-# Required even when this controlled fixture configures no provider keys.
-: > "${RUNTIME_ROOT}/provider-env"
-chown root:root "${RUNTIME_ROOT}/provider-env"
-chmod 600 "${RUNTIME_ROOT}/provider-env"
 printf '%s\n' "${GENERATION_ROOT}" > "${RUNTIME_ROOT}/ready"
 printf '%s\n' true > "${RUNTIME_ROOT}/mcp-enabled"
 printf '%s\n' true > "${RUNTIME_ROOT}/native-mcp-enabled"
@@ -108,11 +105,23 @@ cp /opt/ha-mcp-server/AGENTS.md "${RUNTIME_ROOT}/config/opencode/AGENTS.md"
 mkdir "${RUNTIME_ROOT}/reload-plugin"
 cp /tmp/v2-caller-secret-plugin.js "${RUNTIME_ROOT}/reload-plugin/index.js"
 printf '%s\n' '{"type":"module"}' > "${RUNTIME_ROOT}/reload-plugin/package.json"
+node /tmp/v2-provider-startup-fixture.mjs serve "${RUNTIME_ROOT}" >"${BOUNDARY_ROOT}/provider.log" 2>&1 &
+PROVIDER_PID=$!
+wait_for_status 200 "http://127.0.0.1:18766/health"
+for _attempt in $(seq 1 100); do
+    [ -f "${RUNTIME_ROOT}/provider-fixture.ready" ] && break
+    sleep 0.1
+done
+test -f "${RUNTIME_ROOT}/provider-fixture.ready"
 node /opt/opencode-v2-homeassistant/managed-config.js --restrict-sensitive-files false --plugin-enabled true \
     --plugin-package "${RUNTIME_ROOT}/reload-plugin" \
     --mcp-endpoint "http://127.0.0.1:${PROXY_PORT}/mcp" --native-mcp-enabled true \
     --native-mcp-endpoint "http://127.0.0.1:${PROXY_PORT}/native-mcp" \
+    --options-file "${RUNTIME_ROOT}/provider-options.json" \
+    --environment-output "${RUNTIME_ROOT}/provider-env" \
     > "${RUNTIME_ROOT}/managed.json"
+chown root:root "${RUNTIME_ROOT}/provider-env"
+chmod 600 "${RUNTIME_ROOT}/provider-env"
 
 NATIVE_PORT="${NATIVE_PORT}" node --input-type=module -e \
     'import { createServer } from "node:http"; const server=createServer((request,response)=>{ if(request.url==="/health"){response.writeHead(200).end("ok");return;} if(request.method!=="POST"||request.url!=="/api/mcp/assist"){response.writeHead(404).end();return;} if(request.headers.authorization!=="Bearer image-fixture-token"){response.writeHead(401).end();return;} let body=""; request.on("data",(chunk)=>{body+=chunk;}); request.on("end",()=>{const message=JSON.parse(body); let result=null; if(message.method==="initialize") result={protocolVersion:message.params.protocolVersion,capabilities:{tools:{}},serverInfo:{name:"fixture-native",version:"1"}}; if(message.method==="tools/list") result={tools:[{name:"HassTurnOn",description:"Fixture native tool",inputSchema:{type:"object",additionalProperties:false}}]}; if(result) response.writeHead(200,{"content-type":"application/json"}).end(JSON.stringify({jsonrpc:"2.0",id:message.id,result})); else response.writeHead(202).end();});}); server.listen(Number(process.env.NATIVE_PORT),"127.0.0.1");' \
@@ -179,6 +188,12 @@ if cat "/proc/${SECURE_PID}/environ" >/dev/null 2>&1; then
 fi
 
 grep -q 'V2 caller credential module-reload regression passed' "${BOUNDARY_ROOT}/v2.log"
+node /tmp/v2-provider-startup-fixture.mjs verify "${RUNTIME_ROOT}" "${SERVER_PORT}"
+node /tmp/v2-lan-fixture.mjs "${RUNTIME_ROOT}" "${SERVER_PORT}"
+if grep -qF 'fixture-startup-provider-key' "${BOUNDARY_ROOT}/v2.log"; then
+    echo "Provider credential appeared in runtime logs" >&2
+    exit 1
+fi
 if tr '\0' '\n' < "/proc/${SECURE_PID}/cmdline" \
     | grep -F -f "${RUNTIME_ROOT}/server-password" >/dev/null; then exit 1; fi
 
