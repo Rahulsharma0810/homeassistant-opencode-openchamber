@@ -3,13 +3,16 @@ import { createServer } from "node:http";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import { WebSocketServer } from "ws";
 
 const SERVER = join(dirname(fileURLToPath(import.meta.url)), "..", "index.js");
 const TIMEOUT_MS = 20_000;
 const children = new Set();
 const requests = [];
 let mockServer;
+let mockWebSocketServer;
 let supervisorBaseUrl;
+let backupAgentsUnavailable = false;
 const jobFixtures = [
   { uuid: "empty-errors", name: "empty-errors", done: true, errors: [], progress: 100,
     child_jobs: [{ name: "successful-child", done: true, errors: [], progress: 100 }] },
@@ -80,6 +83,22 @@ function supervisorResponse(request, response) {
 
 beforeAll(async () => {
   mockServer = createServer(supervisorResponse);
+  mockWebSocketServer = new WebSocketServer({ server: mockServer, path: "/core/websocket" });
+  mockWebSocketServer.on("connection", (socket) => {
+    socket.send(JSON.stringify({ type: "auth_required" }));
+    socket.on("message", (raw) => {
+      const message = JSON.parse(raw.toString());
+      if (message.type === "auth") {
+        socket.send(JSON.stringify({ type: "auth_ok" }));
+      } else if (message.type === "backup/info") {
+        socket.send(JSON.stringify(backupAgentsUnavailable
+          ? { id: message.id, type: "result", success: false, error: { message: "unavailable" } }
+          : { id: message.id, type: "result", success: true, result: { backups: [{
+            backup_id: "backup-1", agents: { "cloud.cloud": {}, "hassio.local": {} },
+          }] } }));
+      }
+    });
+  });
   await new Promise((resolve) => mockServer.listen(0, "127.0.0.1", resolve));
   const { port } = mockServer.address();
   supervisorBaseUrl = `http://127.0.0.1:${port}`;
@@ -87,6 +106,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   for (const child of children) child.kill();
+  await new Promise((resolve) => mockWebSocketServer.close(resolve));
   await new Promise((resolve) => mockServer.close(resolve));
 });
 
@@ -276,6 +296,7 @@ describe("Supervisor operations MCP tools", () => {
     expect(health.data.supervisor.version).toBe("2026.07.5");
     expect(resolution.data.issues.returned).toBe(1);
     expect(backups.data.backups[0].slug).toBe("backup-1");
+    expect(backups.data.backups[0].location_count).toBe(2);
     expect(logs.data.log).toContain("normal line");
     expect(store.data.repositories.items[0].source).toBe("https://example.test/repo");
     expect(metrics.data.metrics.cpu_percent).toBe(12.5);
@@ -283,6 +304,16 @@ describe("Supervisor operations MCP tools", () => {
     const rendered = JSON.stringify({ health, resolution, backups, logs, store, metrics });
     for (const secret of ["192.168.5.33", "private-host", "private-reference", "/backup/private", "password@example", "private-token-value", "private-bearer-value", "internal_token"]) {
       expect(rendered).not.toContain(secret);
+    }
+  }, TIMEOUT_MS + 5_000);
+
+  it("reports an unknown count when Core backup-agent data is unavailable", async () => {
+    backupAgentsUnavailable = true;
+    try {
+      const backups = parsePayload(await callMcp("full", "get_backup_posture", { limit: 1 }));
+      expect(backups.data.backups[0].location_count).toBeNull();
+    } finally {
+      backupAgentsUnavailable = false;
     }
   }, TIMEOUT_MS + 5_000);
 

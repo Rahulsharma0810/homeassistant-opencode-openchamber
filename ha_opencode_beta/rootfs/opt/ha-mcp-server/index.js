@@ -188,6 +188,8 @@ const __dirname = dirname(__filename);
 
 const SUPERVISOR_API = process.env.HA_API_BASE_URL || "http://supervisor/core/api";
 const SUPERVISOR_BASE_URL = process.env.SUPERVISOR_BASE_URL || "http://supervisor";
+const SUPERVISOR_WEBSOCKET_URL = new URL("/core/websocket", SUPERVISOR_BASE_URL);
+SUPERVISOR_WEBSOCKET_URL.protocol = SUPERVISOR_WEBSOCKET_URL.protocol === "https:" ? "wss:" : "ws:";
 const HA_CONFIG_DIR = "/homeassistant";
 const SUPERVISOR_TOKEN = process.env.SUPERVISOR_TOKEN;
 const HA_ACCESS_TOKEN = process.env.HA_ACCESS_TOKEN;   // Long-lived token for direct HA Core calls
@@ -1829,7 +1831,7 @@ async function fetchHARepairs() {
  * Run a single HA WebSocket API command (auth, send, close).
  * Used for registry dumps that have no REST equivalent.
  */
-function callHAWebSocketCommand(commandType, timeoutMs = 5000) {
+function callHAWebSocketCommand(commandType, timeoutMs = 5000, url = "ws://supervisor/core/websocket") {
   return new Promise((promiseResolve, promiseReject) => {
     const requestSignal = getRequestSignal();
     let settled = false;
@@ -1851,7 +1853,7 @@ function callHAWebSocketCommand(commandType, timeoutMs = 5000) {
 
     let ws;
     try {
-      ws = new WebSocket("ws://supervisor/core/websocket");
+      ws = new WebSocket(url);
     } catch (error) {
       clearTimeout(timeout);
       promiseReject(error);
@@ -6009,7 +6011,16 @@ async function handleToolCall(request) {
       case "get_backup_posture": {
         const limit = clampSupervisorLimit(args?.limit, SUPERVISOR_DEFAULT_LIST_LIMIT, SUPERVISOR_MAX_LIST_LIMIT);
         sendLog("debug", "supervisor-read", { action: "get_backup_posture", limit });
-        const data = projectBackupPosture(await callSupervisor("/backups/info"), { limit });
+        const info = await callSupervisor("/backups/info");
+        let coreBackups;
+        try {
+          coreBackups = (await callHAWebSocketCommand("backup/info", API_TIMEOUT_MS, SUPERVISOR_WEBSOCKET_URL.toString()))?.backups;
+        } catch {
+          // A missing Core agent inventory is unknown, not the smaller count
+          // from Supervisor's cloud-filtered `locations` array.
+          sendLog("warning", "supervisor-read", { action: "backup_agents_unavailable" });
+        }
+        const data = projectBackupPosture(info, { limit, coreBackups });
         return makeCompatibleResponse({
           content: [createCompactJsonContent(
             "Returned bounded Home Assistant backup posture",

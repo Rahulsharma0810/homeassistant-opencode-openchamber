@@ -3,6 +3,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## 3.0.3
+
+- **Correct backup copy counts ([#123](https://github.com/magnusoverli/opencode/issues/123))** — `get_backup_posture` counts Home Assistant backup agents so a local-plus-cloud backup reports both copies. When the Core agent inventory is unavailable, the count is unknown instead of an undercount; storage locations remain omitted.
+- **Fix safe-write template false positives ([#124](https://github.com/magnusoverli/opencode/issues/124))** — validate complete YAML template scalars rather than isolated Jinja tags, skip unchanged templates from the existing file, and avoid rejecting new templates that require automation runtime variables to render. Changed template syntax errors still block writes, and Home Assistant's full config check still runs after a write.
+
 ## 3.0.2
 
 - **Fix V1-to-V2 conversation migration ([#122](https://github.com/magnusoverli/opencode/issues/122))** — calculate the session cost total with the same sequential floating-point addition as OpenCode V2. Python's newer `sum()` uses compensated addition and could falsely reject an otherwise intact conversation with `session_projection_mismatch (fields: cost)`. The exact aggregate and individual message checks remain in place; the original state is preserved if any other validation fails.

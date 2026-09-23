@@ -75,6 +75,7 @@ import { fileURLToPath } from "url";
 // Extracted pure-function modules (testable in isolation)
 import { detectAnomaly, searchEntities, generateSuggestions, generateStateSummary } from "./lib/intelligence.js";
 import { validateYamlStructure, resolveConfigPath } from "./lib/validation.js";
+import { validateConfigTemplates } from "./lib/template-validation.js";
 import { configApplyGuidance } from "./lib/config-apply.js";
 import { captureHomeAssistantPage } from "./lib/screenshot.js";
 import { extractContentFromHtml, extractConfigurationSection, extractYamlExamples } from "./lib/html-parser.js";
@@ -188,6 +189,8 @@ const __dirname = dirname(__filename);
 
 const SUPERVISOR_API = process.env.HA_API_BASE_URL || "http://supervisor/core/api";
 const SUPERVISOR_BASE_URL = process.env.SUPERVISOR_BASE_URL || "http://supervisor";
+const SUPERVISOR_WEBSOCKET_URL = new URL("/core/websocket", SUPERVISOR_BASE_URL);
+SUPERVISOR_WEBSOCKET_URL.protocol = SUPERVISOR_WEBSOCKET_URL.protocol === "https:" ? "wss:" : "ws:";
 const HA_CONFIG_DIR = "/homeassistant";
 const SUPERVISOR_TOKEN = process.env.SUPERVISOR_TOKEN;
 const HA_ACCESS_TOKEN = process.env.HA_ACCESS_TOKEN;   // Long-lived token for direct HA Core calls
@@ -1829,7 +1832,7 @@ async function fetchHARepairs() {
  * Run a single HA WebSocket API command (auth, send, close).
  * Used for registry dumps that have no REST equivalent.
  */
-function callHAWebSocketCommand(commandType, timeoutMs = 5000) {
+function callHAWebSocketCommand(commandType, timeoutMs = 5000, url = "ws://supervisor/core/websocket") {
   return new Promise((promiseResolve, promiseReject) => {
     const requestSignal = getRequestSignal();
     let settled = false;
@@ -1851,7 +1854,7 @@ function callHAWebSocketCommand(commandType, timeoutMs = 5000) {
 
     let ws;
     try {
-      ws = new WebSocket("ws://supervisor/core/websocket");
+      ws = new WebSocket(url);
     } catch (error) {
       clearTimeout(timeout);
       promiseReject(error);
@@ -2113,71 +2116,6 @@ async function checkConfigForDeprecations(yamlConfig, integration = null) {
 // ============================================================================
 // CONFIG VALIDATION HELPERS
 // ============================================================================
-
-/**
- * Extract Jinja2 templates from YAML content and validate each through HA's
- * template engine. Templates containing automation context variables (trigger.*,
- * this.*, etc.) are flagged as unverifiable rather than failed.
- */
-async function extractAndValidateTemplates(yamlContent) {
-  const results = [];
-  
-  // Match {{ ... }} template expressions (handles multiline)
-  const templateRegex = /\{\{[\s\S]*?\}\}/g;
-  // Match {% ... %} template blocks
-  const blockRegex = /\{%[\s\S]*?%\}/g;
-  
-  const templates = new Set();
-  
-  let match;
-  while ((match = templateRegex.exec(yamlContent)) !== null) {
-    templates.add(match[0]);
-  }
-  while ((match = blockRegex.exec(yamlContent)) !== null) {
-    templates.add(match[0]);
-  }
-  
-  // Context variables that can't be validated statically
-  const contextVars = [
-    "trigger.", "this.", "context.", "wait.", "repeat.", "response.",
-  ];
-
-  const truncate = (t) => t.substring(0, 100) + (t.length > 100 ? "..." : "");
-
-  const validateOne = async (template) => {
-    if (contextVars.some(v => template.includes(v))) {
-      return {
-        template: truncate(template),
-        status: "skipped",
-        reason: "Contains runtime context variables (trigger/this/wait/repeat) that cannot be validated statically.",
-      };
-    }
-
-    try {
-      const rendered = await callHA("/template", "POST", { template });
-      return {
-        template: truncate(template),
-        status: "valid",
-        result: String(rendered).substring(0, 200),
-      };
-    } catch (error) {
-      return {
-        template: truncate(template),
-        status: "error",
-        error: error.message,
-      };
-    }
-  };
-
-  // Validate concurrently in small batches to avoid hammering HA core
-  const queue = [...templates];
-  const batchSize = 5;
-  for (let i = 0; i < queue.length; i += batchSize) {
-    results.push(...await Promise.all(queue.slice(i, i + batchSize).map(validateOne)));
-  }
-
-  return results;
-}
 
 // Content-validation results are memoized briefly so the recommended
 // dry-run â†’ write workflow doesn't re-validate identical content twice
@@ -5343,8 +5281,13 @@ async function handleToolCall(request) {
           });
         }
         
-        // Steps 2-6 depend only on the content â€” reuse a recent dry-run's results
-        const memoKey = createHash("sha256").update(`${validate_templates}:${content}`).digest("hex");
+        // Template validation depends on the current file as well as the proposed content.
+        let previousContent = null;
+        if (validate_templates && existsSync(resolvedPath)) {
+          try { previousContent = readFileSync(resolvedPath, "utf-8"); } catch (_) { /* validate without a baseline */ }
+        }
+        const memoKey = createHash("sha256")
+          .update(JSON.stringify([resolvedPath, validate_templates, previousContent, content])).digest("hex");
         let contentChecks = getValidationMemo(memoKey);
 
         if (!contentChecks) {
@@ -5392,7 +5335,10 @@ async function handleToolCall(request) {
             (async () => {
               if (!validate_templates) return [];
               try {
-                return await extractAndValidateTemplates(content);
+                return await validateConfigTemplates(content, {
+                  previousContent,
+                  render: (template) => callHA("/template", "POST", { template }),
+                });
               } catch (error) {
                 sendLog("warning", "config", { action: "template_validation_failed", error: error.message });
                 return [{ template: "(all)", status: "skipped", reason: `Template validation unavailable: ${error.message}` }];
@@ -5537,7 +5483,7 @@ async function handleToolCall(request) {
             responseText += `## Template Validation\n\n`;
             responseText += `- Valid: ${validTemplates.length}\n`;
             responseText += `- Errors: ${templateErrors.length}\n`;
-            responseText += `- Skipped (runtime context): ${skippedTemplates.length}\n\n`;
+            responseText += `- Skipped (unchanged or runtime-dependent): ${skippedTemplates.length}\n\n`;
           }
           
           if (depSuggestions.length > 0) {
@@ -6009,7 +5955,16 @@ async function handleToolCall(request) {
       case "get_backup_posture": {
         const limit = clampSupervisorLimit(args?.limit, SUPERVISOR_DEFAULT_LIST_LIMIT, SUPERVISOR_MAX_LIST_LIMIT);
         sendLog("debug", "supervisor-read", { action: "get_backup_posture", limit });
-        const data = projectBackupPosture(await callSupervisor("/backups/info"), { limit });
+        const info = await callSupervisor("/backups/info");
+        let coreBackups;
+        try {
+          coreBackups = (await callHAWebSocketCommand("backup/info", API_TIMEOUT_MS, SUPERVISOR_WEBSOCKET_URL.toString()))?.backups;
+        } catch {
+          // A missing Core agent inventory is unknown, not the smaller count
+          // from Supervisor's cloud-filtered `locations` array.
+          sendLog("warning", "supervisor-read", { action: "backup_agents_unavailable" });
+        }
+        const data = projectBackupPosture(info, { limit, coreBackups });
         return makeCompatibleResponse({
           content: [createCompactJsonContent(
             "Returned bounded Home Assistant backup posture",
