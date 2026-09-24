@@ -1901,6 +1901,13 @@ def prepare(args: argparse.Namespace) -> dict:
                 )
             if available < required:
                 raise MigrationError("insufficient_space")
+            if source_info["database"]:
+                print(
+                    "OpenCode V2 migration in progress: verifying and copying existing history; "
+                    "Ingress may show 502 until startup finishes. Wait for the ready message or a migration error before restarting.",
+                    file=sys.stderr,
+                    flush=True,
+                )
 
             atomic_json(
                 journal,
@@ -1949,12 +1956,24 @@ def prepare(args: argparse.Namespace) -> dict:
                     "target_version": args.target_version,
                 },
             )
+            if source_info["database"]:
+                print(
+                    "OpenCode V2 migration in progress: private snapshot ready; converting history",
+                    file=sys.stderr,
+                    flush=True,
+                )
             convert_candidate(
                 candidate,
                 args.v2_bin.resolve(),
                 args.timeout,
                 args.runtime_user,
             )
+            if source_info["database"]:
+                print(
+                    "OpenCode V2 migration in progress: conversion finished; validating history",
+                    file=sys.stderr,
+                    flush=True,
+                )
             target_database = target_data / "opencode.db"
             validate_tree(candidate)
             validate_database(target_database)

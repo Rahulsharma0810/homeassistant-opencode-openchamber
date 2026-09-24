@@ -3,6 +3,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## 3.0.10
+
+- Explain first-boot migration progress and temporary Ingress 502s while large histories convert, so users know when startup finishes without restarting ([#130](https://github.com/magnusoverli/opencode/issues/130)).
+
 ## 3.0.9
 
 - Add a bounded `external_mcp_config` option for remote and local MCP servers. Credentials stay in secured root-owned files, local processes run unprivileged with only their declared environment, external tools default to confirmation, and optional ordered tool rules are translated to native V2 permissions.

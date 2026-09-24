@@ -12,8 +12,12 @@ terminal or OpenChamber web workspace with one shared, app-managed backend.
    LAN access first. Review `opencode_config` against the supported V2 subset;
    invalid or unsupported settings stop activation with an explanatory error.
 3. **Allow the first startup to finish.** Stable conversation history is converted
-   into a private V2 generation and activated only after validation. Failed
-   conversion preserves its input; read the app log before retrying.
+   into a private V2 generation and activated only after validation. Large
+   databases can take several minutes; Ingress may show 502 while the migration
+   runs. Wait for `OpenCode V2 copy-on-write state generation is ready` and the
+   server startup log, or for a migration error, before restarting. Successful
+   preparation starts the services in the same boot without a manual restart.
+   Failed conversion preserves its input; read the app log before retrying.
 4. **Reconnect providers with `/connect`.** V1 browser/OAuth credentials are not
    imported. Provider API keys supplied through app options are handled separately.
 
