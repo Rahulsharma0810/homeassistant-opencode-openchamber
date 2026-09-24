@@ -2757,7 +2757,7 @@ const TOOLS = [
   {
     name: "set_entity_area",
     title: "Assign Entity to Area",
-    description: "Set an explicit area override for a registered Home Assistant entity, or clear the override with null (then it inherits its device's area). Requires Home Assistant admin access and user approval. Use get_areas for the exact area ID; confirm the entity ID with search_entities/get_entity_details.",
+    description: "Set an explicit area override for a registered Home Assistant entity, or clear the override with null (then it inherits its device's area). Requires Home Assistant admin access and user approval. Use get_areas for the exact area ID; confirm the entity ID with search_entities or get_home_context.",
     inputSchema: {
       type: "object",
       properties: {
