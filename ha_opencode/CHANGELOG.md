@@ -9,7 +9,7 @@ All notable changes to this project will be documented in this file.
 
 ## 3.0.9
 
-- Add a bounded `external_mcp_config` option for remote and local MCP servers. Credentials stay in secured root-owned files, local processes run unprivileged with only their declared environment, external tools default to confirmation, and optional ordered tool rules are translated to native V2 permissions.
+- Add a bounded `external_mcp_config` option for remote and local MCP servers. Credentials stay in secured root-owned files, local processes run unprivileged with only their declared environment, external tools default to confirmation, and optional ordered tool rules are translated to native V2 permissions. Thanks to [@mabratland](https://github.com/mabratland) for contributing this feature ([#131](https://github.com/magnusoverli/opencode/pull/131)).
 
 ## 3.0.8
 
