@@ -53,6 +53,9 @@ jobs:
       - name: Beta add-on contract tests
         run: node --test "ha_opencode_beta/test/*.test.js"
 
+      - name: Beta external MCP root boundary
+        run: sudo "$(command -v node)" --test ha_opencode_beta/test/opencode-v2-external-mcp.test.js
+
       - name: Native provider credential loader boundary
         run: sudo "$(command -v node)" --test ha_opencode_beta/test/opencode-v2-provider-environment.test.js
 
@@ -62,6 +65,9 @@ jobs:
 
       - name: Stable add-on contract tests
         run: node --test "ha_opencode/test/*.test.js"
+
+      - name: Stable external MCP root boundary
+        run: sudo "$(command -v node)" --test ha_opencode/test/opencode-v2-external-mcp.test.js
 
       - name: Stable native provider credential loader boundary
         run: sudo "$(command -v node)" --test ha_opencode/test/opencode-v2-provider-environment.test.js

@@ -3,6 +3,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- Add a bounded `external_mcp_config` option for remote and local MCP servers. Credentials stay in secured root-owned files, local processes run unprivileged with only their declared environment, external tools default to confirmation, and optional ordered tool rules are translated to native V2 permissions.
+
 ## 3.0.8
 
 - Allow guarded V1-to-V2 migration of databases up to 32 GiB and log size-only storage preflight figures to diagnose startup failures ([#130](https://github.com/magnusoverli/opencode/issues/130)).
