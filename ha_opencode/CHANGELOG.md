@@ -3,6 +3,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## 3.0.8
+
+- Allow guarded V1-to-V2 migration of databases up to 32 GiB and log size-only storage preflight figures to diagnose startup failures ([#130](https://github.com/magnusoverli/opencode/issues/130)).
+
 ## 3.0.7
 
 - Restore device and entity room assignments in OpenChamber via approved Home Assistant registry tools in the full profile ([#132](https://github.com/magnusoverli/opencode/issues/132)).
