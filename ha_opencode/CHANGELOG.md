@@ -3,6 +3,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## 3.0.7
+
+- Restore device and entity room assignments in OpenChamber via approved Home Assistant registry tools in the full profile ([#132](https://github.com/magnusoverli/opencode/issues/132)).
+
 ## 3.0.6
 
 - **Keep complete large hab results for safe dashboard edits ([#128](https://github.com/magnusoverli/opencode/issues/128))** — when `hab_run` exceeds its 20,000-character inline limit, its response now includes `meta.full_output_path` for the entire result in a private, temporary runtime file. The preview stays bounded; agents can transform the complete dashboard locally instead of saving a reconstruction with missing content. Old exports are pruned on subsequent exports or cleared at container restart.

@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Restore device and entity room assignments in OpenChamber via approved Home Assistant registry tools in the full profile ([#132](https://github.com/magnusoverli/opencode/issues/132)).
+
 ## 3.0.0b22
 
 - Fixed OpenChamber Usage to read the active V2 provider credentials instead of retained V1 sign-ins, including account switches, token refreshes and disconnects.
